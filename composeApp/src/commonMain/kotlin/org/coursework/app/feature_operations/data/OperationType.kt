@@ -1,4 +1,4 @@
-package org.coursework.app
+package org.coursework.app.feature_operations.data
 
 enum class OperationType {
     DrawPrimitive,

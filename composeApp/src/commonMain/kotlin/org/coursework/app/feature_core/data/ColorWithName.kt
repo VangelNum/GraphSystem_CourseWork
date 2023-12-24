@@ -1,4 +1,4 @@
-package org.coursework.app
+package org.coursework.app.feature_core.data
 
 import androidx.compose.ui.graphics.Color
 

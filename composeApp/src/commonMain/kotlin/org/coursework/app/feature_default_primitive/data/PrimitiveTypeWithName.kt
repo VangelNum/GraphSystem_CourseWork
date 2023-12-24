@@ -1,4 +1,4 @@
-package org.coursework.app
+package org.coursework.app.feature_default_primitive.data
 
 data class PrimitiveTypeWithName(
     val type: TypeOfPrimitive,

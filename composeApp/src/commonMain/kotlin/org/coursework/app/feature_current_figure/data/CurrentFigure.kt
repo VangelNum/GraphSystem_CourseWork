@@ -1,4 +1,4 @@
-package org.coursework.app
+package org.coursework.app.feature_current_figure.data
 
 import androidx.compose.ui.geometry.Offset
 

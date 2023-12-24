@@ -1,11 +1,7 @@
-package org.coursework.app
+package org.coursework.app.feature_tmo.data
 
 data class TmoWithName (
     val tmoType: TmoType,
     val name: String
 )
 
-enum class TmoType {
-    MERGE,
-    DIFFERENCE
-}

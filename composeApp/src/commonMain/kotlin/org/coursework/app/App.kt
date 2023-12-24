@@ -1,10 +1,14 @@
+@file:OptIn(
+    ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class
+)
+
 package org.coursework.app
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -51,14 +55,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.indexOfFirstPressed
 import androidx.compose.ui.input.pointer.isPrimaryPressed
@@ -66,17 +65,41 @@ import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.sin
+import org.coursework.app.feature_core.data.ColorWithName
+import org.coursework.app.feature_current_figure.data.CurrentFigure
+import org.coursework.app.feature_core.data.DrawableItem
+import org.coursework.app.feature_cubic_spline.operations.cubicSplinePathCalculate
+import org.coursework.app.feature_cubic_spline.presentation.drawPathForCubicSpline
+import org.coursework.app.feature_cubic_spline.presentation.drawTempLinesAndPointForCubicSpline
+import org.coursework.app.feature_default_primitive.data.PrimitiveTypeWithName
+import org.coursework.app.feature_default_primitive.data.TypeOfPrimitive
+import org.coursework.app.feature_default_primitive.operations.calculateFlagPoints
+import org.coursework.app.feature_default_primitive.operations.calculateRectangularTrianglePoints
+import org.coursework.app.feature_operations.data.OperationType
+import org.coursework.app.feature_operations.data.OperationWithName
+import org.coursework.app.feature_selected_figure.operations.calculateBoundingBox
+import org.coursework.app.feature_selected_figure.presentation.drawFigureNumberForChosenFigure
+import org.coursework.app.feature_operations.presentation.fillPrimitive
+import org.coursework.app.feature_operations.operations.getCenterOfFigure
+import org.coursework.app.feature_core.getColorList
+import org.coursework.app.feature_operations.operations.getOperationList
+import org.coursework.app.feature_default_primitive.operations.getPrimitiveList
+import org.coursework.app.feature_selected_figure.operations.getSelectedFigure
+import org.coursework.app.feature_tmo.operations.getTmoList
+import org.coursework.app.feature_operations.operations.mirrorPointsSelectedCenter
+import org.coursework.app.feature_operations.operations.mirrorPointsVertical
+import org.coursework.app.feature_operations.operations.rotateFigure
+import org.coursework.app.feature_operations.presentation.drawFigureNumbers
+import org.coursework.app.feature_operations.presentation.drawHelperForVerticalMirror
+import org.coursework.app.feature_current_figure.presentation.drawPathAndPointsForCurrentFigure
+import org.coursework.app.feature_tmo.data.TmoWithName
+import org.coursework.app.feature_tmo.operations.calculateTmo
 
 
 val widthOfButtons = 250.dp
@@ -88,7 +111,6 @@ val textStyle = TextStyle(
 )
 val topPadding = 24.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun App() {
     val operationList = getOperationList()
@@ -179,377 +201,109 @@ internal fun App() {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("Выбор операции", style = textStyle)
-                            ExposedDropdownMenuBox(
-                                expanded = expandedOperation,
-                                onExpandedChange = {
-                                    expandedOperation = !expandedOperation
-                                }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedOperation.name,
-                                    onValueChange = {
-
-                                    },
-                                    readOnly = true,
-                                    trailingIcon = {
-                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedOperation)
-                                    },
-                                    modifier = Modifier.menuAnchor().width(widthOfButtons)
-                                        .height(heightOfButtons),
-                                    textStyle = textStyle
-                                )
-
-                                ExposedDropdownMenu(
-                                    expanded = expandedOperation,
-                                    onDismissRequest = {
-                                        expandedOperation = false
-                                    }
-                                ) {
-                                    operationList.forEach { operationWithName ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    operationWithName.name
-                                                )
-                                            },
-                                            onClick = {
-                                                selectedOperation = operationWithName
-                                                if (selectedOperation.operation == OperationType.DrawCubeSpline) {
-                                                    currentFigure.isCubicSpline = true
-                                                } else {
-                                                    currentFigure.isCubicSpline = false
-                                                    currentFigure.tempListForLinesCubicSpline.clear()
-                                                }
-                                                if (selectedOperation.operation == OperationType.WorkWithObject) {
-                                                    position = Offset(0f, 0f)
-                                                }
-                                                expandedOperation = false
-                                            }
-                                        )
-                                    }
-                                }
+                        ChooseOperationSection(
+                            expandedOperation = expandedOperation,
+                            onExpandedOperationChange = {
+                                expandedOperation = it
+                            },
+                            selectedOperation = selectedOperation,
+                            onSelectedOperationChange = {
+                                selectedOperation = it
+                            },
+                            onClickWorkWithObject = {
+                                position = Offset(0f, 0f)
+                            },
+                            operationList = operationList,
+                            onClickDrawCubicSpline = {
+                                currentFigure.isCubicSpline = true
+                            },
+                            onClickAnotherOperation = {
+                                currentFigure.isCubicSpline = false
+                                currentFigure.tempListForLinesCubicSpline.clear()
                             }
-                        }
+                        )
                         Column {
                             AnimatedVisibility(selectedOperation.operation != OperationType.WorkWithObject) {
-                                Column(
-
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text("Цвет рисования", style = textStyle)
-
-                                    ExposedDropdownMenuBox(
-                                        expanded = expandedColor,
-                                        onExpandedChange = {
-                                            expandedColor = !expandedColor
-                                        }
-                                    ) {
-                                        OutlinedTextField(
-                                            value = selectedColor.name,
-                                            onValueChange = {
-
-                                            },
-                                            readOnly = true,
-                                            trailingIcon = {
-                                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedColor)
-                                            },
-                                            modifier = Modifier.menuAnchor().width(widthOfButtons)
-                                                .height(heightOfButtons),
-                                            textStyle = textStyle
-                                        )
-
-                                        ExposedDropdownMenu(
-                                            expanded = expandedColor,
-                                            onDismissRequest = {
-                                                expandedColor = false
-                                            }
-                                        ) {
-                                            colorList.forEach { colorWithName ->
-                                                DropdownMenuItem(
-                                                    text = {
-                                                        Text(
-                                                            colorWithName.name
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        selectedColor = colorWithName
-                                                        expandedColor = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
+                                ChooseColorSection(
+                                    expandedColor = expandedColor,
+                                    onExpandedColorChange = {
+                                        expandedColor = it
+                                    },
+                                    selectedColor = selectedColor,
+                                    onColorSelectedChange = {
+                                        selectedColor = it
+                                    },
+                                    colorList = colorList
+                                )
                             }
                             AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject && selectedFigure != null) {
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text("Угол поворота", style = textStyle)
-                                    OutlinedTextField(
-                                        value = rotationAngle,
-                                        onValueChange = { value ->
-                                            rotationAngle =
-                                                value.filter { it.isDigit() || it == '-' }
-                                        },
-                                        textStyle = textStyle,
-                                        modifier = Modifier.width(widthOfButtons)
-                                            .height(heightOfButtons),
-                                        singleLine = true,
-                                        trailingIcon = {
-                                            IconButton(
-                                                onClick = {
-                                                    if (selectedOperation.operation == OperationType.WorkWithObject) {
-                                                        selectedFigure?.let { item ->
-                                                            item.rotationCenter = position
-                                                            item.rotationAngle = rotationAngle.toInt().toFloat()
-                                                            item.offsetList = rotatePoints(
-                                                                item.offsetList,
-                                                                item.rotationCenter!!,
-                                                                item.rotationAngle
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(
-                                                    tint = Color.Green,
-                                                    imageVector = Icons.Outlined.Done,
-                                                    contentDescription = null
-                                                )
-                                            }
-                                        }
-                                    )
-                                }
+                                ChooseRotationSection(
+                                    rotationAngle = rotationAngle,
+                                    onRotationAngleChange = {
+                                        rotationAngle = it
+                                    },
+                                    selectedFigure = selectedFigure,
+                                    position = position
+                                )
                             }
                         }
                     }
                     AnimatedVisibility(selectedOperation.operation == OperationType.PastPrimitive) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("Выбор примитива", style = textStyle)
-
-                            ExposedDropdownMenuBox(
-                                expanded = expandedPrimitive,
-                                onExpandedChange = {
-                                    expandedPrimitive = !expandedPrimitive
-                                }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedPrimitive.name,
-                                    onValueChange = {
-
-                                    },
-                                    readOnly = true,
-                                    trailingIcon = {
-                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPrimitive)
-                                    },
-                                    modifier = Modifier.menuAnchor().width(widthOfButtons)
-                                        .height(heightOfButtons),
-                                    textStyle = textStyle
-                                )
-
-                                ExposedDropdownMenu(
-                                    expanded = expandedPrimitive,
-                                    onDismissRequest = {
-                                        expandedPrimitive = false
-                                    }
-                                ) {
-                                    primitiveList.forEach { colorWithName ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    colorWithName.name
-                                                )
-                                            },
-                                            onClick = {
-                                                selectedPrimitive = colorWithName
-                                                expandedPrimitive = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        ChoosePrimitiveSection(
+                            expandedPrimitive = expandedPrimitive,
+                            onExpandedPrimitiveChange = {
+                                expandedPrimitive = it
+                            },
+                            selectedPrimitive = selectedPrimitive,
+                            onSelectedPrimitiveChange = {
+                                selectedPrimitive = it
+                            },
+                            primitiveList = primitiveList
+                        )
                     }
                     AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject && selectedFigure != null) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Box(modifier = Modifier.padding(top = topPadding)) {
-                                ElevatedButton(
-                                    modifier = Modifier.width(widthOfButtons + 60.dp)
-                                        .height(heightOfButtons),
-                                    onClick = {
-                                        if (selectedOperation.operation == OperationType.WorkWithObject) {
-                                            selectedFigure?.let { figure ->
-                                                val center = getCenterOfFigure(figure)
-                                                figure.offsetList =
-                                                    mirrorPoints(figure.offsetList, center)
-                                            }
-                                        }
-                                    },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = ButtonDefaults.outlinedButtonBorder
-                                ) {
-                                    Text(
-                                        "Зеркальное отражение относительно центра фигуры",
-                                        style = textStyle
-                                    )
+                            MirrorCenterFigureSection(
+                                selectedFigure
+                            )
+                            MirrorVerticalFigureSection(
+                                selectedFigure,
+                                position,
+                                showCheckBoxForVerticalLine,
+                                onShowCheckBoxChange = {
+                                    showCheckBoxForVerticalLine = !it
                                 }
-                            }
-                            Box(modifier = Modifier.padding(top = topPadding)) {
-                                ElevatedButton(
-                                    modifier = Modifier.width(widthOfButtons + 60.dp)
-                                        .height(heightOfButtons),
-                                    onClick = {
-                                        if (selectedOperation.operation == OperationType.WorkWithObject) {
-                                            selectedFigure?.let { figure ->
-                                                figure.offsetList = mirrorPointsVertical(
-                                                    figure.offsetList,
-                                                    position.x
-                                                )
-                                            }
-                                        }
-                                    },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = ButtonDefaults.outlinedButtonBorder
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(
-                                            8.dp,
-                                            Alignment.CenterHorizontally
-                                        ),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Text(
-                                                "Зеркальное отражение относительно вертикальной прямой",
-                                                style = textStyle
-                                            )
-                                        }
-                                        IconButton(
-                                            onClick = {
-                                                showCheckBoxForVerticalLine =
-                                                    !showCheckBoxForVerticalLine
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = if (showCheckBoxForVerticalLine) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
-                                                contentDescription = null
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            )
                         }
                     }
                     AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text("Объект A", style = textStyle)
-                                ExposedDropdownMenuBox(
-                                    expanded = expandedFigureA,
-                                    onExpandedChange = {
-                                        expandedFigureA = !expandedFigureA
-                                    }
-                                ) {
-                                    OutlinedTextField(
-                                        value = selectedFigureAIndex?.let { number ->
-                                            (number + 1).toString()
-                                        } ?: "",
-                                        onValueChange = {
-
-                                        },
-                                        readOnly = true,
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFigureA)
-                                        },
-                                        modifier = Modifier.menuAnchor().width(widthOfButtons)
-                                            .height(heightOfButtons),
-                                        textStyle = textStyle
-                                    )
-
-                                    ExposedDropdownMenu(
-                                        expanded = expandedFigureA,
-                                        onDismissRequest = {
-                                            expandedFigureA = false
-                                        }
-                                    ) {
-                                        drawableItems.forEachIndexed { index, drawableItem ->
-                                            DropdownMenuItem(
-                                                text = {
-                                                    Text(
-                                                        (index + 1).toString(),
-                                                        style = textStyle
-                                                    )
-                                                },
-                                                onClick = {
-                                                    selectedFigureAIndex = index
-                                                    expandedFigureA = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text("Выбор ТМО", style = textStyle)
-                                ExposedDropdownMenuBox(
-                                    expanded = expandedTmo,
-                                    onExpandedChange = {
-                                        expandedTmo = !expandedTmo
-                                    }
-                                ) {
-                                    OutlinedTextField(
-                                        value = selectedTmo.name,
-                                        onValueChange = {
-
-                                        },
-                                        readOnly = true,
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTmo)
-                                        },
-                                        modifier = Modifier.menuAnchor().width(widthOfButtons)
-                                            .height(heightOfButtons),
-                                        textStyle = textStyle
-                                    )
-
-                                    ExposedDropdownMenu(
-                                        expanded = expandedTmo,
-                                        onDismissRequest = {
-                                            expandedTmo = false
-                                        }
-                                    ) {
-                                        tmoList.forEach { tmoWithName ->
-                                            DropdownMenuItem(
-                                                text = {
-                                                    Text(
-                                                        tmoWithName.name
-                                                    )
-                                                },
-                                                onClick = {
-                                                    selectedTmo = tmoWithName
-                                                    expandedTmo = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            ChooseFigureASection(
+                                expandedFigureA = expandedFigureA,
+                                onExpandedFigureA = {
+                                    expandedFigureA = it
+                                },
+                                selectedFigureAIndex = selectedFigureAIndex,
+                                onSelectedFigureAIndex = {
+                                    selectedFigureAIndex = it
+                                },
+                                drawableItems = drawableItems
+                            )
+                            ChooseTmoSection(
+                                expandedTmo,
+                                onExpandedTmoChange = {
+                                    expandedTmo = it
+                                },
+                                selectedTmo = selectedTmo,
+                                onSelectedTmoChange = {
+                                    selectedTmo = it
+                                },
+                                tmoList = tmoList
+                            )
                         }
                     }
 
@@ -557,248 +311,73 @@ internal fun App() {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text("Объект B", style = textStyle)
-                                ExposedDropdownMenuBox(
-                                    expanded = expandedFigureB,
-                                    onExpandedChange = {
-                                        expandedFigureB = !expandedFigureB
-                                    }
-                                ) {
-                                    OutlinedTextField(
-                                        value = selectedFigureBIndex?.let { number ->
-                                            (number + 1).toString()
-                                        } ?: "",
-                                        onValueChange = {
-
-                                        },
-                                        readOnly = true,
-                                        trailingIcon = {
-                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFigureA)
-                                        },
-                                        modifier = Modifier.menuAnchor().width(widthOfButtons)
-                                            .height(heightOfButtons),
-                                        textStyle = textStyle
-                                    )
-
-                                    ExposedDropdownMenu(
-                                        expanded = expandedFigureB,
-                                        onDismissRequest = {
-                                            expandedFigureB = false
-                                        }
-                                    ) {
-                                        drawableItems.forEachIndexed { index, drawableItem ->
-                                            DropdownMenuItem(
-                                                text = {
-                                                    Text(
-                                                        (index + 1).toString(),
-                                                        style = textStyle
-                                                    )
-                                                },
-                                                onClick = {
-                                                    selectedFigureBIndex = index
-                                                    expandedFigureB = false
-                                                }
-                                            )
-                                        }
-                                    }
+                            ChooseFigureBSection(
+                                expandedFigureB = expandedFigureB,
+                                onExpandedFigureB = {
+                                    expandedFigureB = it
+                                },
+                                selectedFigureBIndex = selectedFigureBIndex,
+                                onSelectedFigureBIndex = {
+                                    selectedFigureBIndex = it
+                                },
+                                drawableItems = drawableItems
+                            )
+                            ApplyTmoSection(
+                                selectedFigureAIndex = selectedFigureAIndex,
+                                selectedFigureBIndex = selectedFigureBIndex,
+                                drawableItems = drawableItems,
+                                onDrawableItemsChange = {
+                                    drawableItems = it
+                                },
+                                selectedTmo = selectedTmo,
+                                scope = scope,
+                                snackbarHostState = snackbarHostState,
+                                onSelectedFigureAIndexChange = {
+                                    selectedFigureAIndex = null
+                                },
+                                onSelectedFigureBIndexChange = {
+                                    selectedFigureBIndex = null
                                 }
-                            }
-                            Box(modifier = Modifier.padding(top = topPadding)) {
-                                ElevatedButton(
-                                    modifier = Modifier.width(widthOfButtons)
-                                        .height(heightOfButtons),
-                                    onClick = {
-                                        if (selectedFigureAIndex == null || selectedFigureBIndex == null) {
-                                            return@ElevatedButton
-                                        }
+                            )
 
-                                        val selectedFigureA =
-                                            drawableItems.getOrNull(selectedFigureAIndex!!)
-                                        val selectedFigureB =
-                                            drawableItems.getOrNull(selectedFigureBIndex!!)
-
-                                        if (selectedFigureA == null || selectedFigureB == null) {
-                                            return@ElevatedButton
-                                        }
-
-                                        if (selectedFigureA.isCubicSpline || selectedFigureB.isCubicSpline || selectedFigureA.offsetList.size < 3 || selectedFigureB.offsetList.size < 3) {
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("ТМО нельзя применить к кубическому сплайну или к отрезку")
-                                            }
-                                            return@ElevatedButton
-                                        }
-                                        if (selectedFigureA == selectedFigureB) {
-                                            scope.launch {
-                                                snackbarHostState.showSnackbar("ТМО нельзя применить к одной фигуре")
-                                            }
-                                            return@ElevatedButton
-                                        }
-
-                                        computeTMO(
-                                            selectedTmo.tmoType,
-                                            selectedFigureA,
-                                            selectedFigureB,
-                                            drawableItems,
-                                            onResult = {
-                                                drawableItems = it
-                                            }
-                                        )
-                                        selectedFigureAIndex = null
-                                        selectedFigureBIndex = null
-                                    },
-                                    shape = MaterialTheme.shapes.small,
-                                    border = ButtonDefaults.outlinedButtonBorder
-                                ) {
-                                    Text(
-                                        "Применить ТМО",
-                                        style = textStyle
-                                    )
-                                }
-                            }
                         }
                     }
-
 
                     Spacer(modifier = Modifier.weight(1f))
                     AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject && selectedFigure != null) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("Выбранная фигура")
-                            Box(
-                                modifier = Modifier.size(120.dp)
-                                    .border(1.dp, Color.Black, shape = RoundedCornerShape(5))
-                            ) {
-                                Canvas(
-                                    modifier = Modifier.fillMaxSize().padding(10.dp)
-                                ) {
-                                    selectedFigure?.let { drawableItem ->
-                                        val boundingBox =
-                                            calculateBoundingBox(drawableItem.offsetList)
-
-                                        val scaleX = size.width / boundingBox.width
-                                        val scaleY = size.height / boundingBox.height
-
-                                        val translateX = -boundingBox.left * scaleX
-                                        val translateY = -boundingBox.top * scaleY
-
-                                        val transformedPoints = drawableItem.offsetList.map {
-                                            Offset(
-                                                it.x * scaleX + translateX,
-                                                it.y * scaleY + translateY
-                                            )
-                                        }
-
-                                        val selectedDrawable = DrawableItem(
-                                            transformedPoints,
-                                            drawableItem.color
-                                        )
-                                        if (drawableItem.tmoWasMake == true) {
-                                            transformedPoints.chunked(2) { (xl, xr) ->
-                                                drawLine(
-                                                    color = drawableItem.color,
-                                                    strokeWidth = 2f,
-                                                    start = xl,
-                                                    end = xr
-                                                )
-                                            }
-                                        } else if (drawableItem.isCubicSpline) {
-                                            drawPathForCubicSpline(selectedDrawable)
-                                        } else {
-                                            fillPrimitive(
-                                                selectedDrawable
-                                            )
-                                        }
-
-
-                                        if (showNumberOfFigures) {
-                                            drawFigureNumberForChoosenFigure(
-                                                selectedFigure,
-                                                textMeasurer,
-                                                drawableItems
-                                            )
-                                        }
-                                    }
-                                }
-                                IconButton(
-                                    modifier = Modifier.align(Alignment.BottomEnd),
-                                    onClick = {
-                                        drawableItems.remove(selectedFigure)
-                                        selectedFigure = null
-                                    }) {
-                                    Icon(
-                                        imageVector = Icons.Default.DeleteOutline,
-                                        contentDescription = null,
-                                        tint = Color.Blue
-                                    )
-                                }
+                        ChoosenFigureSection(
+                            selectedFigure = selectedFigure,
+                            drawableItems = drawableItems,
+                            showNumberOfFigures = showNumberOfFigures,
+                            textMeasurer = textMeasurer,
+                            onIconClick = {
+                                drawableItems.remove(selectedFigure)
+                                selectedFigure = null
                             }
-                        }
+                        )
                     }
 
                     Column(
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
-                        Box(modifier = Modifier.padding(top = topPadding)) {
-                            ElevatedButton(
-                                modifier = Modifier.width(widthOfButtons).height(heightOfButtons),
-                                onClick = {
-                                    showNumberOfFigures = !showNumberOfFigures
-                                },
-                                shape = MaterialTheme.shapes.small,
-                                border = ButtonDefaults.outlinedButtonBorder
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(
-                                        8.dp,
-                                        Alignment.CenterHorizontally
-                                    ),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text("Отобразить номера объектов", style = textStyle)
-                                    }
-                                    Icon(
-                                        imageVector = if (showNumberOfFigures) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
-                                        contentDescription = null
-                                    )
-                                }
+                        ShowNumberOfFigureSection(
+                            showNumberOfFigures = showNumberOfFigures,
+                            onClick = {
+                                showNumberOfFigures = !showNumberOfFigures
                             }
-                        }
-                        Box(modifier = Modifier.padding(top = topPadding).padding(top = 8.dp)) {
-                            ElevatedButton(
-                                modifier = Modifier.width(widthOfButtons).height(heightOfButtons),
-                                onClick = {
-                                    drawableItems.clear()
-                                    currentFigure.offsetList.clear()
-                                    currentFigure.tempListForLinesCubicSpline.clear()
-                                    selectedFigureAIndex = null
-                                    selectedFigureBIndex = null
-                                    selectedFigure = null
-                                },
-                                shape = MaterialTheme.shapes.small,
-                                border = ButtonDefaults.outlinedButtonBorder
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(
-                                        8.dp,
-                                        Alignment.CenterHorizontally
-                                    ),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Очистить поле", style = textStyle)
-                                    Icon(
-                                        imageVector = Icons.Outlined.DeleteOutline,
-                                        contentDescription = null
-                                    )
-                                }
-                            }
-                        }
+                        )
+
+                        ClearPictureBoxSection(
+                            onClick = {
+                                drawableItems.clear()
+                                currentFigure.offsetList.clear()
+                                currentFigure.tempListForLinesCubicSpline.clear()
+                                selectedFigureAIndex = null
+                                selectedFigureBIndex = null
+                                selectedFigure = null
+                            },
+                        )
+
                     }
                 }
             }
@@ -854,7 +433,7 @@ internal fun App() {
                                         if (event.buttons.isPrimaryPressed || event.buttons.indexOfFirstPressed() == -1) {
                                             when (selectedPrimitive.type) {
                                                 TypeOfPrimitive.FLAG -> {
-                                                    val flag = flag(position.x, position.y)
+                                                    val flag = calculateFlagPoints(position.x, position.y)
                                                     drawableItems.add(
                                                         DrawableItem(
                                                             flag,
@@ -864,8 +443,7 @@ internal fun App() {
                                                 }
 
                                                 TypeOfPrimitive.RECTANGULARTRIANGLE -> {
-                                                    val triangle =
-                                                        rectangularTriangle(position.x, position.y)
+                                                    val triangle = calculateRectangularTrianglePoints(position.x, position.y)
                                                     drawableItems.add(
                                                         DrawableItem(
                                                             triangle,
@@ -886,8 +464,7 @@ internal fun App() {
                                                 position
                                             )
                                             if (currentFigure.tempListForLinesCubicSpline.size == 4) {
-                                                val splinePoints =
-                                                    cubicSplinePath(currentFigure.tempListForLinesCubicSpline)
+                                                val splinePoints = cubicSplinePathCalculate(currentFigure.tempListForLinesCubicSpline)
                                                 drawableItems.add(
                                                     DrawableItem(
                                                         splinePoints,
@@ -964,511 +541,681 @@ internal fun App() {
     }
 }
 
-fun computeTMO(
-    tmoType: TmoType,
-    figureA: DrawableItem,
-    figureB: DrawableItem,
+@Composable
+fun ClearPictureBoxSection(onClick: () -> Unit) {
+    Box(modifier = Modifier.padding(top = topPadding).padding(top = 8.dp)) {
+        ElevatedButton(
+            modifier = Modifier.width(widthOfButtons).height(heightOfButtons),
+            onClick = onClick,
+            shape = MaterialTheme.shapes.small,
+            border = ButtonDefaults.outlinedButtonBorder
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(
+                    8.dp,
+                    Alignment.CenterHorizontally
+                ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Очистить поле", style = textStyle)
+                Icon(
+                    imageVector = Icons.Outlined.DeleteOutline,
+                    contentDescription = null
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ShowNumberOfFigureSection(
+    showNumberOfFigures: Boolean,
+    onClick: () -> Unit
+) {
+    Box(modifier = Modifier.padding(top = topPadding)) {
+        ElevatedButton(
+            modifier = Modifier.width(widthOfButtons).height(heightOfButtons),
+            onClick = onClick,
+            shape = MaterialTheme.shapes.small,
+            border = ButtonDefaults.outlinedButtonBorder
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(
+                    8.dp,
+                    Alignment.CenterHorizontally
+                ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Отобразить номера объектов", style = textStyle)
+                }
+                Icon(
+                    imageVector = if (showNumberOfFigures) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
+                    contentDescription = null
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ChoosenFigureSection(
+    selectedFigure: DrawableItem?,
     drawableItems: SnapshotStateList<DrawableItem>,
-    onResult: (SnapshotStateList<DrawableItem>) -> Unit
-) {
-    val newFigureLines = mutableListOf<Line>()
-
-    val SetQ = when (tmoType) {
-        TmoType.MERGE -> shortArrayOf(1, 3)
-        TmoType.DIFFERENCE -> shortArrayOf(2, 2)
-    }
-
-    val YallMin: Int = getMinimumYBothFigure(figureA.lines, figureB.lines)
-    val YallMax: Int = getMaximumYBothFigure(figureA.lines, figureB.lines)
-    for (j in YallMin until YallMax) {
-        val XaLine = filterLinesByY(figureA.lines, j)
-        val XbLine = filterLinesByY(figureB.lines, j)
-        val M = buildMList(XaLine, XbLine)
-        M.sortBy { it.x }
-        var Q = 0
-        var Qnew: Int
-        val Xrl = mutableListOf<Int>()
-        val Xrr = mutableListOf<Int>()
-
-        M.forEach { mItem ->
-            val x = mItem.x
-            Qnew = Q + mItem.dQ
-
-            if ((Q < SetQ[0] || Q > SetQ[1]) && (Qnew >= SetQ[0] && Qnew <= SetQ[1])) {
-                Xrl.add(x)
-            }
-
-            if ((Q >= SetQ[0] && Q <= SetQ[1]) && (Qnew < SetQ[0] || Qnew > SetQ[1])) {
-                Xrr.add(x)
-            }
-
-            Q = Qnew
-        }
-        for (i in Xrl.indices) {
-            newFigureLines.add(Line(Xrl[i], Xrr[i], j))
-        }
-    }
-    val newDrawableItem = DrawableItem(
-        offsetList = calculateOffsets(newFigureLines),
-        color = figureA.color,
-        lines = newFigureLines,
-        tmoWasMake = true
-    )
-    drawableItems.remove(figureA)
-    drawableItems.remove(figureB)
-    drawableItems.add(newDrawableItem)
-    onResult(drawableItems)
-}
-
-fun calculateOffsets(newFigureLines: MutableList<Line>): List<Offset> {
-    val resultOffsets = mutableListOf<Offset>()
-
-    for (line in newFigureLines) {
-        resultOffsets.add(Offset(line.xl.toFloat(), line.y.toFloat()))
-        resultOffsets.add(Offset(line.xr.toFloat(), line.y.toFloat()))
-    }
-
-    return resultOffsets
-}
-
-
-fun buildMList(xaLines: List<Line>, xbLines: List<Line>): MutableList<BL> {
-    val M = mutableListOf<BL>()
-
-    xaLines.forEach { xaLine ->
-        M.add(BL(xaLine.xl, 2))
-        M.add(BL(xaLine.xr, -2))
-    }
-
-    xbLines.forEach { xbLine ->
-        M.add(BL(xbLine.xl, 1))
-        M.add(BL(xbLine.xr, -1))
-    }
-
-    return M
-}
-
-fun getMinimumYBothFigure(lines1: List<Line>, lines2: List<Line>): Int {
-    var minY = Int.MAX_VALUE
-
-    for (line in lines1) {
-        if (line.y < minY) {
-            minY = line.y
-        }
-    }
-
-    for (line in lines2) {
-        if (line.y < minY) {
-            minY = line.y
-        }
-    }
-
-    return minY
-}
-
-fun getMaximumYBothFigure(lines1: List<Line>, lines2: List<Line>): Int {
-    var maxY = Int.MIN_VALUE
-
-    for (line in lines1) {
-        if (line.y > maxY) {
-            maxY = line.y
-        }
-    }
-
-    for (line in lines2) {
-        if (line.y > maxY) {
-            maxY = line.y
-        }
-    }
-
-    return maxY
-}
-
-fun filterLinesByY(lines: List<Line>, y: Int): List<Line> {
-    val filteredLines = mutableListOf<Line>()
-
-    for (line in lines) {
-        if (line.y == y) {
-            filteredLines.add(line)
-        }
-    }
-
-    return filteredLines
-}
-
-fun getMinimumY(offsetList: List<Offset>): Int {
-    return offsetList.minOf { it.y }.toInt()
-}
-
-fun getMaximumY(offsetList: List<Offset>): Int {
-    return offsetList.maxOf { it.y }.toInt()
-}
-
-fun DrawScope.fillPrimitive(drawableItem: DrawableItem) {
-    if (drawableItem.offsetList.size == 2) {
-        drawLine(
-            color = drawableItem.color,
-            strokeWidth = 2f,
-            start = drawableItem.offsetList[0],
-            end = drawableItem.offsetList[1]
-        )
-        return
-    }
-    if (drawableItem.tmoWasMake == true) {
-        val offsets = drawableItem.offsetList
-        offsets.chunked(2) { (xl, xr) ->
-            drawLine(
-                color = drawableItem.color,
-                strokeWidth = 2f,
-                start = xl,
-                end = xr
-            )
-        }
-    } else {
-        drawableItem.lines.clear()
-
-        val offsetList = drawableItem.offsetList
-        val minY = getMinimumY(offsetList)
-        val maxY = getMaximumY(offsetList)
-        val xb = mutableListOf<Float>()
-
-        for (y in minY..maxY) {
-            xb.clear()
-
-            for (i in offsetList.indices) {
-                val k = if (i < offsetList.size - 1) i + 1 else 0
-
-                if ((offsetList[i].y > y && offsetList[k].y <= y) || (offsetList[k].y > y && offsetList[i].y <= y)) {
-                    val x =
-                        offsetList[i].x + (y - offsetList[i].y) / (offsetList[k].y - offsetList[i].y) * (offsetList[k].x - offsetList[i].x)
-                    xb.add(x)
-                }
-            }
-
-            xb.sort()
-
-            // Add Offset values in the correct order
-            for (i in xb.indices step 2) {
-                val xl = xb[i].toInt()
-                val xr = if (i + 1 < xb.size) xb[i + 1].toInt() else xl
-                drawLine(
-                    color = drawableItem.color,
-                    strokeWidth = 2f,
-                    start = Offset(xl.toFloat(), y.toFloat()),
-                    end = Offset(xr.toFloat(), y.toFloat())
-                )
-                drawableItem.lines.add(Line(xl = xl, xr = xr, y = y))
-            }
-        }
-    }
-}
-
-
-fun calculateBoundingBox(offsetList: List<Offset>): Rect {
-    var minX = Float.MAX_VALUE
-    var minY = Float.MAX_VALUE
-    var maxX = Float.MIN_VALUE
-    var maxY = Float.MIN_VALUE
-
-    for (offset in offsetList) {
-        minX = min(minX, offset.x)
-        minY = min(minY, offset.y)
-        maxX = max(maxX, offset.x)
-        maxY = max(maxY, offset.y)
-    }
-
-    return Rect(minX, minY, maxX, maxY)
-}
-
-
-fun DrawScope.drawHelperForVerticalMirror(
-    position: Offset,
-    pointAlpha: Float,
-    selectedFigure: DrawableItem?,
-    showCheckBoxForVerticalLine: Boolean
-) {
-    if (showCheckBoxForVerticalLine) {
-        selectedFigure?.let { figure ->
-            val axisX = position.x
-            drawLine(
-                color = Color.Cyan.copy(alpha = pointAlpha),
-                start = Offset(axisX, figure.offsetList.minOf { it.y }),
-                end = Offset(axisX, figure.offsetList.maxOf { it.y }),
-                strokeWidth = 2f
-            )
-        }
-    } else {
-        drawCircle(
-            color = Color.Red.copy(alpha = pointAlpha),
-            center = position,
-            radius = 4f
-        )
-    }
-}
-
-fun DrawScope.drawPathAndPointsForCurrentFigure(currentFigure: CurrentFigure, color: Color) {
-    drawPath(
-        path = Path().apply {
-            currentFigure.offsetList.forEachIndexed { index, offset ->
-                if (index == 0) {
-                    moveTo(offset.x, offset.y)
-                } else {
-                    lineTo(offset.x, offset.y)
-                }
-            }
-        },
-        color = color,
-        style = Stroke(width = 4f)
-    )
-    currentFigure.offsetList.forEach { offset ->
-        drawCircle(
-            color = Color.Magenta,
-            center = offset,
-            radius = 4f
-        )
-    }
-}
-
-fun DrawScope.drawTempLinesAndPointForCubicSpline(
-    currentFigure: CurrentFigure
-) {
-    currentFigure.tempListForLinesCubicSpline.forEachIndexed { index, offset ->
-        if (index < currentFigure.tempListForLinesCubicSpline.size - 1 && index % 2 == 0) {
-            drawLine(
-                color = Color.Cyan,
-                start = currentFigure.tempListForLinesCubicSpline[index],
-                end = currentFigure.tempListForLinesCubicSpline[index + 1],
-                strokeWidth = 2f
-            )
-        }
-        drawCircle(
-            color = Color.Magenta,
-            center = offset,
-            radius = 4f
-        )
-    }
-}
-
-fun DrawScope.drawPathForCubicSpline(
-    drawableItem: DrawableItem
-) {
-    drawPath(
-        path = Path().apply {
-            drawableItem.offsetList.forEachIndexed { index, offset ->
-                if (index == 0) {
-                    moveTo(offset.x, offset.y)
-                } else {
-                    lineTo(offset.x, offset.y)
-                }
-            }
-        },
-        color = drawableItem.color,
-        style = Stroke(width = 2f)
-    )
-}
-
-fun DrawScope.drawFigureNumbers(drawableItems: List<DrawableItem>, textMeasurer: TextMeasurer) {
-    drawableItems.forEachIndexed { index, drawableItem ->
-        val text = (index + 1).toString()
-        val center = getCenterOfFigure(drawableItem)
-        try {
-            drawText(
-                textMeasurer = textMeasurer, text = text, topLeft = center, style = TextStyle(
-                    color = Color.Magenta,
-                    fontSize = 24.sp
-                )
-            )
-        } catch (e: Exception) {
-            println("Experimental API ${e.message}")
-        }
-    }
-}
-
-fun DrawScope.drawFigureNumberForChoosenFigure(
-    selectedFigure: DrawableItem?,
+    showNumberOfFigures: Boolean,
     textMeasurer: TextMeasurer,
+    onIconClick: () -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Выбранная фигура")
+        Box(
+            modifier = Modifier.size(120.dp)
+                .border(1.dp, Color.Black, shape = RoundedCornerShape(5))
+        ) {
+            Canvas(
+                modifier = Modifier.fillMaxSize().padding(10.dp)
+            ) {
+                selectedFigure?.let { drawableItem ->
+                    val boundingBox = calculateBoundingBox(drawableItem.offsetList)
+
+                    val scaleX = size.width / boundingBox.width
+                    val scaleY = size.height / boundingBox.height
+
+                    val translateX = -boundingBox.left * scaleX
+                    val translateY = -boundingBox.top * scaleY
+
+                    val transformedPoints = drawableItem.offsetList.map {
+                        Offset(
+                            it.x * scaleX + translateX,
+                            it.y * scaleY + translateY
+                        )
+                    }
+
+                    val selectedDrawable = DrawableItem(
+                        transformedPoints,
+                        drawableItem.color
+                    )
+                    if (drawableItem.tmoWasMake == true) {
+                        transformedPoints.chunked(2) { (xl, xr) ->
+                            drawLine(
+                                color = drawableItem.color,
+                                strokeWidth = 2f,
+                                start = xl,
+                                end = xr
+                            )
+                        }
+                    } else if (drawableItem.isCubicSpline) {
+                        drawPathForCubicSpline(selectedDrawable)
+                    } else {
+                        fillPrimitive(
+                            selectedDrawable
+                        )
+                    }
+
+
+                    if (showNumberOfFigures) {
+                        drawFigureNumberForChosenFigure(
+                            selectedFigure,
+                            textMeasurer,
+                            drawableItems
+                        )
+                    }
+                }
+            }
+            IconButton(
+                modifier = Modifier.align(Alignment.BottomEnd),
+                onClick = onIconClick
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = null,
+                    tint = Color.Blue
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ApplyTmoSection(
+    selectedFigureAIndex: Int?,
+    selectedFigureBIndex: Int?,
+    drawableItems: SnapshotStateList<DrawableItem>,
+    onDrawableItemsChange: (SnapshotStateList<DrawableItem>) -> Unit,
+    selectedTmo: TmoWithName,
+    scope: CoroutineScope,
+    snackbarHostState: SnackbarHostState,
+    onSelectedFigureAIndexChange: (Unit?) -> Unit,
+    onSelectedFigureBIndexChange: (Unit?) -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(modifier = Modifier.padding(top = topPadding)) {
+            ElevatedButton(
+                modifier = Modifier.width(widthOfButtons)
+                    .height(heightOfButtons),
+                onClick = {
+                    if (selectedFigureAIndex == null || selectedFigureBIndex == null) {
+                        return@ElevatedButton
+                    }
+
+                    val selectedFigureA = drawableItems.getOrNull(selectedFigureAIndex)
+                    val selectedFigureB = drawableItems.getOrNull(selectedFigureBIndex)
+
+                    if (selectedFigureA == null || selectedFigureB == null) {
+                        return@ElevatedButton
+                    }
+
+                    if (selectedFigureA.isCubicSpline || selectedFigureB.isCubicSpline || selectedFigureA.offsetList.size < 3 || selectedFigureB.offsetList.size < 3) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("ТМО нельзя применить к кубическому сплайну или к отрезку")
+                        }
+                        return@ElevatedButton
+                    }
+                    if (selectedFigureA == selectedFigureB) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("ТМО нельзя применить к одной фигуре")
+                        }
+                        return@ElevatedButton
+                    }
+
+                    calculateTmo(
+                        selectedTmo.tmoType,
+                        selectedFigureA,
+                        selectedFigureB,
+                        drawableItems,
+                        onResult = {
+                            onDrawableItemsChange(it)
+                        }
+                    )
+                    onSelectedFigureAIndexChange(null)
+                    onSelectedFigureBIndexChange(null)
+                },
+                shape = MaterialTheme.shapes.small,
+                border = ButtonDefaults.outlinedButtonBorder
+            ) {
+                Text(
+                    "Применить ТМО",
+                    style = textStyle
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ChooseTmoSection(
+    expandedTmo: Boolean,
+    onExpandedTmoChange: (Boolean) -> Unit,
+    selectedTmo: TmoWithName,
+    onSelectedTmoChange: (TmoWithName) -> Unit,
+    tmoList: List<TmoWithName>
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Выбор ТМО", style = textStyle)
+        ExposedDropdownMenuBox(
+            expanded = expandedTmo,
+            onExpandedChange = onExpandedTmoChange
+        ) {
+            OutlinedTextField(
+                value = selectedTmo.name,
+                onValueChange = {
+
+                },
+                readOnly = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTmo)
+                },
+                modifier = Modifier.menuAnchor().width(widthOfButtons)
+                    .height(heightOfButtons),
+                textStyle = textStyle
+            )
+
+            ExposedDropdownMenu(
+                expanded = expandedTmo,
+                onDismissRequest = {
+                    onExpandedTmoChange(false)
+                }
+            ) {
+                tmoList.forEach { tmoWithName ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                tmoWithName.name
+                            )
+                        },
+                        onClick = {
+                            onSelectedTmoChange(tmoWithName)
+                            onExpandedTmoChange(false)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ChooseFigureASection(
+    expandedFigureA: Boolean,
+    onExpandedFigureA: (Boolean) -> Unit,
+    selectedFigureAIndex: Int?,
+    onSelectedFigureAIndex: (Int) -> Unit,
     drawableItems: List<DrawableItem>
 ) {
-    selectedFigure?.let {
-        val text = "${drawableItems.indexOf(selectedFigure) + 1}"
-
-        drawText(
-            textMeasurer = textMeasurer,
-            text = text,
-            topLeft = center,
-            style = TextStyle(
-                color = Color.Red,
-                fontSize = 12.sp
-            )
-        )
-    }
-}
-
-fun mirrorPointsVertical(points: List<Offset>, verticalAxisX: Float): List<Offset> {
-    return points.map { Offset(2 * verticalAxisX - it.x, it.y) }
-}
-
-fun mirrorPoints(points: List<Offset>, center: Offset): List<Offset> {
-    return points.map { Offset(2 * center.x - it.x, it.y) }
-}
-
-fun getSelectedFigure(position: Offset, figures: List<DrawableItem>): DrawableItem? {
-    return figures.lastOrNull { drawableItem ->
-        isPointInside(position, drawableItem)
-    }
-}
-
-fun getCenterOfFigure(figure: DrawableItem): Offset {
-    var sumX = 0f
-    var sumY = 0f
-
-    for (offset in figure.offsetList) {
-        sumX += offset.x
-        sumY += offset.y
-    }
-
-    val centerX = sumX / figure.offsetList.size
-    val centerY = sumY / figure.offsetList.size
-
-    return Offset(centerX, centerY)
-}
-
-
-fun isPointInside(point: Offset, drawableItem: DrawableItem): Boolean {
-    val offsetList = drawableItem.offsetList
-    if (offsetList.size == 2) {
-        val segmentStart = offsetList[0]
-        val segmentEnd = offsetList[1]
-
-        val minX = minOf(segmentStart.x, segmentEnd.x)
-        val maxX = maxOf(segmentStart.x, segmentEnd.x)
-        val minY = minOf(segmentStart.y, segmentEnd.y)
-        val maxY = maxOf(segmentStart.y, segmentEnd.y)
-
-        return point.x in minX..maxX && point.y in minY..maxY
-    }
-
-    var count = 0
-
-    for (i in 0 until offsetList.size) {
-        val current = offsetList[i]
-        val next = offsetList[(i + 1) % offsetList.size]
-
-        if ((current.y <= point.y && point.y < next.y || next.y <= point.y && point.y < current.y) &&
-            point.x < (next.x - current.x) * (point.y - current.y) / (next.y - current.y) + current.x
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Объект A", style = textStyle)
+        ExposedDropdownMenuBox(
+            expanded = expandedFigureA,
+            onExpandedChange = onExpandedFigureA
         ) {
-            count++
+            OutlinedTextField(
+                value = selectedFigureAIndex?.let { number ->
+                    (number + 1).toString()
+                } ?: "",
+                onValueChange = {
+
+                },
+                readOnly = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFigureA)
+                },
+                modifier = Modifier.menuAnchor().width(widthOfButtons)
+                    .height(heightOfButtons),
+                textStyle = textStyle
+            )
+
+            ExposedDropdownMenu(
+                expanded = expandedFigureA,
+                onDismissRequest = {
+                    onExpandedFigureA(false)
+                }
+            ) {
+                drawableItems.forEachIndexed { index, _ ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                (index + 1).toString(),
+                                style = textStyle
+                            )
+                        },
+                        onClick = {
+                            onSelectedFigureAIndex(index)
+                            onExpandedFigureA(false)
+                        }
+                    )
+                }
+            }
         }
     }
-
-    return count % 2 != 0
 }
 
-fun rotatePoints(points: List<Offset>, center: Offset, angleDegrees: Float): List<Offset> {
-    val resultPoints = mutableListOf<Offset>()
+@Composable
+fun ChooseFigureBSection(
+    expandedFigureB: Boolean,
+    onExpandedFigureB: (Boolean) -> Unit,
+    selectedFigureBIndex: Int?,
+    onSelectedFigureBIndex: (Int) -> Unit,
+    drawableItems: List<DrawableItem>
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Объект B", style = textStyle)
+        ExposedDropdownMenuBox(
+            expanded = expandedFigureB,
+            onExpandedChange = onExpandedFigureB
+        ) {
+            OutlinedTextField(
+                value = selectedFigureBIndex?.let { number ->
+                    (number + 1).toString()
+                } ?: "",
+                onValueChange = {
 
-    val angleRadians = angleDegrees / 180 * PI
-    val cosTheta = cos(angleRadians)
-    val sinTheta = sin(angleRadians)
+                },
+                readOnly = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFigureB)
+                },
+                modifier = Modifier.menuAnchor().width(widthOfButtons)
+                    .height(heightOfButtons),
+                textStyle = textStyle
+            )
 
-    for (point in points) {
-        val translatedX = point.x - center.x
-        val translatedY = point.y - center.y
-
-        val rotatedX = translatedX * cosTheta - translatedY * sinTheta
-        val rotatedY = translatedX * sinTheta + translatedY * cosTheta
-
-        resultPoints.add(Offset(rotatedX.toFloat() + center.x, rotatedY.toFloat() + center.y))
-    }
-
-    return resultPoints
-}
-
-
-fun cubicSplinePath(
-    selectedPoints: List<Offset>
-): List<Offset> {
-    val resultPoints = mutableListOf<Offset>()
-    if (selectedPoints.size >= 4) {
-        val pv1 = Offset(
-            4 * (selectedPoints[1].x - selectedPoints[0].x),
-            4 * (selectedPoints[1].y - selectedPoints[0].y)
-        )
-        val pv2 = Offset(
-            4 * (selectedPoints[3].x - selectedPoints[2].x),
-            4 * (selectedPoints[3].y - selectedPoints[2].y)
-        )
-
-        val l = arrayOf(Offset(0f, 0f), Offset(0f, 0f), Offset(0f, 0f), Offset(0f, 0f))
-
-        l[0] = Offset(
-            2 * selectedPoints[0].x - 2 * selectedPoints[2].x + pv1.x + pv2.x,
-            2 * selectedPoints[0].y - 2 * selectedPoints[2].y + pv1.y + pv2.y
-        )
-
-        l[1] = Offset(
-            -3 * selectedPoints[0].x + 3 * selectedPoints[2].x - 2 * pv1.x - pv2.x,
-            -3 * selectedPoints[0].y + 3 * selectedPoints[2].y - 2 * pv1.y - pv2.y
-        )
-
-        l[2] = pv1
-        l[3] = Offset(selectedPoints[0].x, selectedPoints[0].y)
-
-        var t = 0.0
-        val dt = 0.04
-
-        var pt: Offset
-        var ppred = l[3]
-
-        while (t < 1 + dt / 2) {
-            val xt = ((l[0].x * t + l[1].x) * t + l[2].x) * t + l[3].x
-            val yt = ((l[0].y * t + l[1].y) * t + l[2].y) * t + l[3].y
-            pt = Offset(xt.toFloat(), yt.toFloat())
-
-            resultPoints.add(pt)
-
-            ppred = pt
-            t += dt
+            ExposedDropdownMenu(
+                expanded = expandedFigureB,
+                onDismissRequest = {
+                    onExpandedFigureB(false)
+                }
+            ) {
+                drawableItems.forEachIndexed { index, _ ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                (index + 1).toString(),
+                                style = textStyle
+                            )
+                        },
+                        onClick = {
+                            onSelectedFigureBIndex(index)
+                            onExpandedFigureB(false)
+                        }
+                    )
+                }
+            }
         }
     }
-    return resultPoints
 }
 
 @Composable
-fun getOperationList(): List<OperationWithName> {
-    return listOf(
-        OperationWithName(OperationType.DrawPrimitive, "Рисование примитивов"),
-        OperationWithName(OperationType.PastPrimitive, "Вставка примитивов"),
-        OperationWithName(OperationType.DrawCubeSpline, "Рисование кубического сплайна"),
-        OperationWithName(OperationType.WorkWithObject, "Работа с объектами"),
-    )
+fun MirrorVerticalFigureSection(
+    selectedFigure: DrawableItem?,
+    position: Offset,
+    showCheckBoxForVerticalLine: Boolean,
+    onShowCheckBoxChange: (Boolean) -> Unit
+) {
+    Box(modifier = Modifier.padding(top = topPadding)) {
+        ElevatedButton(
+            modifier = Modifier.width(widthOfButtons + 60.dp)
+                .height(heightOfButtons),
+            onClick = {
+                selectedFigure?.let { figure ->
+                    figure.offsetList = mirrorPointsVertical(
+                        figure.offsetList,
+                        position.x
+                    )
+                }
+            },
+            shape = MaterialTheme.shapes.small,
+            border = ButtonDefaults.outlinedButtonBorder
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(
+                    8.dp,
+                    Alignment.CenterHorizontally
+                ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        "Зеркальное отражение относительно вертикальной прямой",
+                        style = textStyle
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        onShowCheckBoxChange(showCheckBoxForVerticalLine)
+                    }
+                ) {
+                    Icon(
+                        imageVector = if (showCheckBoxForVerticalLine) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
+                        contentDescription = null
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
-fun getColorList(): List<ColorWithName> {
-    return listOf(
-        ColorWithName(Color.Black, "Черный"),
-        ColorWithName(Color.Red, "Красный"),
-        ColorWithName(Color.Green, "Зелёный"),
-        ColorWithName(Color.Yellow, "Жёлтый"),
-        ColorWithName(Color.Blue, "Синий"),
-    )
+fun MirrorCenterFigureSection(
+    selectedFigure: DrawableItem?
+) {
+    Box(modifier = Modifier.padding(top = topPadding)) {
+        ElevatedButton(
+            modifier = Modifier.width(widthOfButtons + 60.dp)
+                .height(heightOfButtons),
+            onClick = {
+                selectedFigure?.let { figure ->
+                    val center = getCenterOfFigure(figure)
+                    figure.offsetList = mirrorPointsSelectedCenter(figure.offsetList, center)
+                }
+            },
+            shape = MaterialTheme.shapes.small,
+            border = ButtonDefaults.outlinedButtonBorder
+        ) {
+            Text(
+                "Зеркальное отражение относительно центра фигуры",
+                style = textStyle
+            )
+        }
+    }
 }
 
 @Composable
-fun getPrimitiveList(): List<PrimitiveTypeWithName> {
-    return listOf(
-        PrimitiveTypeWithName(TypeOfPrimitive.FLAG, "Флаг"),
-        PrimitiveTypeWithName(TypeOfPrimitive.RECTANGULARTRIANGLE, "Прямоугольный треугольник")
-    )
+fun ChoosePrimitiveSection(
+    expandedPrimitive: Boolean,
+    onExpandedPrimitiveChange: (Boolean) -> Unit,
+    selectedPrimitive: PrimitiveTypeWithName,
+    onSelectedPrimitiveChange: (PrimitiveTypeWithName) -> Unit,
+    primitiveList: List<PrimitiveTypeWithName>
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Выбор примитива", style = textStyle)
+        ExposedDropdownMenuBox(
+            expanded = expandedPrimitive,
+            onExpandedChange = {
+                onExpandedPrimitiveChange(it)
+            }
+        ) {
+            OutlinedTextField(
+                value = selectedPrimitive.name,
+                onValueChange = {
+
+                },
+                readOnly = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPrimitive)
+                },
+                modifier = Modifier.menuAnchor().width(widthOfButtons)
+                    .height(heightOfButtons),
+                textStyle = textStyle
+            )
+
+            ExposedDropdownMenu(
+                expanded = expandedPrimitive,
+                onDismissRequest = {
+                    onExpandedPrimitiveChange(false)
+                }
+            ) {
+                primitiveList.forEach { primitive ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                primitive.name
+                            )
+                        },
+                        onClick = {
+                            onSelectedPrimitiveChange(primitive)
+                            onExpandedPrimitiveChange(false)
+                        }
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
-fun getTmoList(): List<TmoWithName> {
-    return listOf(
-        TmoWithName(TmoType.MERGE, "Объединение"),
-        TmoWithName(TmoType.DIFFERENCE, "Разность")
-    )
+fun ChooseRotationSection(
+    rotationAngle: String,
+    onRotationAngleChange: (String) -> Unit,
+    selectedFigure: DrawableItem?,
+    position: Offset
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Угол поворота", style = textStyle)
+        OutlinedTextField(
+            value = rotationAngle,
+            onValueChange = { value ->
+                onRotationAngleChange(value.filter { it.isDigit() || it == '-' })
+            },
+            textStyle = textStyle,
+            modifier = Modifier.width(widthOfButtons)
+                .height(heightOfButtons),
+            singleLine = true,
+            trailingIcon = {
+                IconButton(
+                    onClick = {
+                        selectedFigure?.let { item ->
+                            item.rotationCenter = position
+                            item.rotationAngle =
+                                rotationAngle.toInt().toFloat()
+                            item.offsetList = rotateFigure(
+                                item.offsetList,
+                                item.rotationCenter!!,
+                                item.rotationAngle
+                            )
+                        }
+                    }
+                ) {
+                    Icon(
+                        tint = Color.Green,
+                        imageVector = Icons.Outlined.Done,
+                        contentDescription = null
+                    )
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun ChooseColorSection(
+    expandedColor: Boolean,
+    onExpandedColorChange: (Boolean) -> Unit,
+    selectedColor: ColorWithName,
+    onColorSelectedChange: (ColorWithName) -> Unit,
+    colorList: List<ColorWithName>
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Цвет рисования", style = textStyle)
+
+        ExposedDropdownMenuBox(
+            expanded = expandedColor,
+            onExpandedChange = onExpandedColorChange
+        ) {
+            OutlinedTextField(
+                value = selectedColor.name,
+                onValueChange = {
+
+                },
+                readOnly = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedColor)
+                },
+                modifier = Modifier.menuAnchor().width(widthOfButtons)
+                    .height(heightOfButtons),
+                textStyle = textStyle
+            )
+
+            ExposedDropdownMenu(
+                expanded = expandedColor,
+                onDismissRequest = {
+                    onExpandedColorChange(false)
+                }
+            ) {
+                colorList.forEach { colorWithName ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                colorWithName.name
+                            )
+                        },
+                        onClick = {
+                            onColorSelectedChange(colorWithName)
+                            onExpandedColorChange(false)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChooseOperationSection(
+    expandedOperation: Boolean,
+    onExpandedOperationChange: (Boolean) -> Unit,
+    selectedOperation: OperationWithName,
+    onSelectedOperationChange: (OperationWithName) -> Unit,
+    onClickWorkWithObject: () -> Unit,
+    operationList: List<OperationWithName>,
+    onClickDrawCubicSpline: () -> Unit,
+    onClickAnotherOperation: () -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("Выбор операции", style = textStyle)
+        ExposedDropdownMenuBox(
+            expanded = expandedOperation,
+            onExpandedChange = {
+                onExpandedOperationChange(it)
+            }
+        ) {
+            OutlinedTextField(
+                value = selectedOperation.name,
+                onValueChange = {
+
+                },
+                readOnly = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedOperation)
+                },
+                modifier = Modifier.menuAnchor().width(widthOfButtons)
+                    .height(heightOfButtons),
+                textStyle = textStyle
+            )
+
+            ExposedDropdownMenu(
+                expanded = expandedOperation,
+                onDismissRequest = {
+                    onExpandedOperationChange(false)
+                }
+            ) {
+                operationList.forEach { operationWithName ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                operationWithName.name
+                            )
+                        },
+                        onClick = {
+                            onSelectedOperationChange(operationWithName)
+                            if (selectedOperation.operation == OperationType.DrawCubeSpline) {
+                                onClickDrawCubicSpline()
+                            } else {
+                                onClickAnotherOperation()
+                            }
+                            if (selectedOperation.operation == OperationType.WorkWithObject) {
+                                onClickWorkWithObject()
+                            }
+                            onExpandedOperationChange(false)
+                        }
+                    )
+                }
+            }
+        }
+    }
 }
 
 internal expect fun openUrl(url: String?)

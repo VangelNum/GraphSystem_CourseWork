@@ -1,7 +1,8 @@
-package org.coursework.app
+package org.coursework.app.feature_core.data
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import org.coursework.app.feature_tmo.data.Line
 
 data class DrawableItem(
     var offsetList: List<Offset>,
