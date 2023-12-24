@@ -4,8 +4,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -36,6 +39,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,9 +60,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.indexOfFirstPressed
 import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
-import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -83,7 +88,7 @@ val textStyle = TextStyle(
 )
 val topPadding = 24.dp
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun App() {
     val operationList = getOperationList()
@@ -140,13 +145,13 @@ internal fun App() {
     var expandedFigureA by remember {
         mutableStateOf(false)
     }
-    var selectedFigureA by remember {
+    var selectedFigureAIndex by remember {
         mutableStateOf<Int?>(null)
     }
     var expandedFigureB by remember {
         mutableStateOf(false)
     }
-    var selectedFigureB by remember {
+    var selectedFigureBIndex by remember {
         mutableStateOf<Int?>(null)
     }
     var selectedTmo by remember {
@@ -155,7 +160,12 @@ internal fun App() {
     var expandedTmo by remember {
         mutableStateOf(false)
     }
+    val snackbarHostState = remember { SnackbarHostState() }
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
+
         bottomBar = {
             BottomAppBar(
                 modifier = Modifier.height(180.dp)
@@ -248,7 +258,8 @@ internal fun App() {
                                                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedColor)
                                             },
                                             modifier = Modifier.menuAnchor().width(widthOfButtons)
-                                                .height(heightOfButtons)
+                                                .height(heightOfButtons),
+                                            textStyle = textStyle
                                         )
 
                                         ExposedDropdownMenu(
@@ -285,6 +296,7 @@ internal fun App() {
                                             rotationAngle =
                                                 value.filter { it.isDigit() || it == '-' }
                                         },
+                                        textStyle = textStyle,
                                         modifier = Modifier.width(widthOfButtons)
                                             .height(heightOfButtons),
                                         singleLine = true,
@@ -294,8 +306,7 @@ internal fun App() {
                                                     if (selectedOperation.operation == OperationType.WorkWithObject) {
                                                         selectedFigure?.let { item ->
                                                             item.rotationCenter = position
-                                                            item.rotationAngle =
-                                                                rotationAngle.toInt().toFloat()
+                                                            item.rotationAngle = rotationAngle.toInt().toFloat()
                                                             item.offsetList = rotatePoints(
                                                                 item.offsetList,
                                                                 item.rotationCenter!!,
@@ -455,7 +466,7 @@ internal fun App() {
                                     }
                                 ) {
                                     OutlinedTextField(
-                                        value = selectedFigureA?.let { number ->
+                                        value = selectedFigureAIndex?.let { number ->
                                             (number + 1).toString()
                                         } ?: "",
                                         onValueChange = {
@@ -466,7 +477,8 @@ internal fun App() {
                                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFigureA)
                                         },
                                         modifier = Modifier.menuAnchor().width(widthOfButtons)
-                                            .height(heightOfButtons)
+                                            .height(heightOfButtons),
+                                        textStyle = textStyle
                                     )
 
                                     ExposedDropdownMenu(
@@ -484,7 +496,7 @@ internal fun App() {
                                                     )
                                                 },
                                                 onClick = {
-                                                    selectedFigureA = index
+                                                    selectedFigureAIndex = index
                                                     expandedFigureA = false
                                                 }
                                             )
@@ -556,7 +568,7 @@ internal fun App() {
                                     }
                                 ) {
                                     OutlinedTextField(
-                                        value = selectedFigureB?.let { number ->
+                                        value = selectedFigureBIndex?.let { number ->
                                             (number + 1).toString()
                                         } ?: "",
                                         onValueChange = {
@@ -567,7 +579,8 @@ internal fun App() {
                                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFigureA)
                                         },
                                         modifier = Modifier.menuAnchor().width(widthOfButtons)
-                                            .height(heightOfButtons)
+                                            .height(heightOfButtons),
+                                        textStyle = textStyle
                                     )
 
                                     ExposedDropdownMenu(
@@ -585,7 +598,7 @@ internal fun App() {
                                                     )
                                                 },
                                                 onClick = {
-                                                    selectedFigureB = index
+                                                    selectedFigureBIndex = index
                                                     expandedFigureB = false
                                                 }
                                             )
@@ -598,6 +611,32 @@ internal fun App() {
                                     modifier = Modifier.width(widthOfButtons)
                                         .height(heightOfButtons),
                                     onClick = {
+                                        if (selectedFigureAIndex == null || selectedFigureBIndex == null) {
+                                            return@ElevatedButton
+                                        }
+
+                                        val selectedFigureA =
+                                            drawableItems.getOrNull(selectedFigureAIndex!!)
+                                        val selectedFigureB =
+                                            drawableItems.getOrNull(selectedFigureBIndex!!)
+
+                                        if (selectedFigureA == null || selectedFigureB == null) {
+                                            return@ElevatedButton
+                                        }
+
+                                        if (selectedFigureA.isCubicSpline || selectedFigureB.isCubicSpline || selectedFigureA.offsetList.size < 3 || selectedFigureB.offsetList.size < 3) {
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("ТМО нельзя применить к кубическому сплайну или к отрезку")
+                                            }
+                                            return@ElevatedButton
+                                        }
+                                        if (selectedFigureA == selectedFigureB) {
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar("ТМО нельзя применить к одной фигуре")
+                                            }
+                                            return@ElevatedButton
+                                        }
+
                                         computeTMO(
                                             selectedTmo.tmoType,
                                             selectedFigureA,
@@ -607,6 +646,8 @@ internal fun App() {
                                                 drawableItems = it
                                             }
                                         )
+                                        selectedFigureAIndex = null
+                                        selectedFigureBIndex = null
                                     },
                                     shape = MaterialTheme.shapes.small,
                                     border = ButtonDefaults.outlinedButtonBorder
@@ -664,6 +705,8 @@ internal fun App() {
                                                     end = xr
                                                 )
                                             }
+                                        } else if (drawableItem.isCubicSpline) {
+                                            drawPathForCubicSpline(selectedDrawable)
                                         } else {
                                             fillPrimitive(
                                                 selectedDrawable
@@ -679,6 +722,18 @@ internal fun App() {
                                             )
                                         }
                                     }
+                                }
+                                IconButton(
+                                    modifier = Modifier.align(Alignment.BottomEnd),
+                                    onClick = {
+                                        drawableItems.remove(selectedFigure)
+                                        selectedFigure = null
+                                    }) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = null,
+                                        tint = Color.Blue
+                                    )
                                 }
                             }
                         }
@@ -715,13 +770,16 @@ internal fun App() {
                                 }
                             }
                         }
-                        Box(modifier = Modifier.padding(top = topPadding)) {
+                        Box(modifier = Modifier.padding(top = topPadding).padding(top = 8.dp)) {
                             ElevatedButton(
                                 modifier = Modifier.width(widthOfButtons).height(heightOfButtons),
                                 onClick = {
                                     drawableItems.clear()
                                     currentFigure.offsetList.clear()
                                     currentFigure.tempListForLinesCubicSpline.clear()
+                                    selectedFigureAIndex = null
+                                    selectedFigureBIndex = null
+                                    selectedFigure = null
                                 },
                                 shape = MaterialTheme.shapes.small,
                                 border = ButtonDefaults.outlinedButtonBorder
@@ -751,6 +809,111 @@ internal fun App() {
                 .fillMaxSize()
                 .padding(paddingValues)
                 .pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            if (selectedOperation.operation == OperationType.DrawPrimitive) {
+                                if (currentFigure.offsetList.isNotEmpty() && currentFigure.offsetList.size > 1) {
+                                    val drawableItem = DrawableItem(
+                                        currentFigure.offsetList.toList(),
+                                        selectedColor.color
+                                    )
+                                    drawableItems.add(drawableItem)
+                                    currentFigure.offsetList.clear()
+                                }
+                            }
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (event.type == PointerEventType.Press) {
+                                position = event.changes.first().position
+                                if (!showCheckBoxForVerticalLine) {
+                                    selectedFigure = getSelectedFigure(position, drawableItems)
+                                }
+                                when (selectedOperation.operation) {
+                                    OperationType.DrawPrimitive -> {
+                                        if (event.buttons.isPrimaryPressed || event.buttons.indexOfFirstPressed() == -1) {
+                                            currentFigure.offsetList.add(position)
+                                        }
+                                        if (event.buttons.isSecondaryPressed) {
+                                            if (currentFigure.offsetList.isNotEmpty() && currentFigure.offsetList.size > 1) {
+                                                val drawableItem = DrawableItem(
+                                                    currentFigure.offsetList.toList(),
+                                                    selectedColor.color
+                                                )
+                                                drawableItems.add(drawableItem)
+                                                currentFigure.offsetList.clear()
+                                            }
+                                        }
+                                    }
+
+                                    OperationType.PastPrimitive -> {
+                                        if (event.buttons.isPrimaryPressed || event.buttons.indexOfFirstPressed() == -1) {
+                                            when (selectedPrimitive.type) {
+                                                TypeOfPrimitive.FLAG -> {
+                                                    val flag = flag(position.x, position.y)
+                                                    drawableItems.add(
+                                                        DrawableItem(
+                                                            flag,
+                                                            selectedColor.color
+                                                        )
+                                                    )
+                                                }
+
+                                                TypeOfPrimitive.RECTANGULARTRIANGLE -> {
+                                                    val triangle =
+                                                        rectangularTriangle(position.x, position.y)
+                                                    drawableItems.add(
+                                                        DrawableItem(
+                                                            triangle,
+                                                            selectedColor.color
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    OperationType.DrawCubeSpline -> {
+                                        if (event.buttons.isPrimaryPressed || event.buttons.indexOfFirstPressed() == -1) {
+                                            if (currentFigure.tempListForLinesCubicSpline.size == 4) {
+                                                currentFigure.tempListForLinesCubicSpline.clear()
+                                            }
+                                            currentFigure.tempListForLinesCubicSpline.add(
+                                                position
+                                            )
+                                            if (currentFigure.tempListForLinesCubicSpline.size == 4) {
+                                                val splinePoints =
+                                                    cubicSplinePath(currentFigure.tempListForLinesCubicSpline)
+                                                drawableItems.add(
+                                                    DrawableItem(
+                                                        splinePoints,
+                                                        selectedColor.color,
+                                                        isCubicSpline = true
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    OperationType.WorkWithObject -> {
+                                        scope.launch {
+                                            pointAlpha.snapTo(1f)
+                                            pointAlpha.animateTo(
+                                                0f,
+                                                animationSpec = tween(durationMillis = 2000)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .pointerInput(Unit) {
                     detectDragGestures { change, dragAmount ->
                         if (selectedOperation.operation == OperationType.WorkWithObject && !showCheckBoxForVerticalLine) {
                             position = change.position
@@ -765,87 +928,7 @@ internal fun App() {
                         }
                     }
                 }
-                .onPointerEvent(PointerEventType.Press) { event ->
-                    position = event.changes.first().position
-                    if (!showCheckBoxForVerticalLine) {
-                        selectedFigure = getSelectedFigure(position, drawableItems)
-                    }
-                    when (selectedOperation.operation) {
-                        OperationType.DrawPrimitive -> {
-                            if (event.buttons.isPrimaryPressed) {
-                                currentFigure.offsetList.add(position)
-                            }
-                            if (event.buttons.isSecondaryPressed) {
-                                if (currentFigure.offsetList.isNotEmpty() && currentFigure.offsetList.size > 1) {
-                                    val drawableItem = DrawableItem(
-                                        currentFigure.offsetList.toList(),
-                                        selectedColor.color
-                                    )
-                                    drawableItems.add(drawableItem)
-                                    currentFigure.offsetList.clear()
-                                }
-                            }
-                        }
 
-                        OperationType.PastPrimitive -> {
-                            if (event.buttons.isPrimaryPressed) {
-                                when (selectedPrimitive.type) {
-                                    TypeOfPrimitive.FLAG -> {
-                                        val flag = flag(position.x, position.y)
-                                        drawableItems.add(
-                                            DrawableItem(
-                                                flag,
-                                                selectedColor.color
-                                            )
-                                        )
-                                    }
-
-                                    TypeOfPrimitive.RECTANGULARTRIANGLE -> {
-                                        val triangle = rectangularTriangle(position.x, position.y)
-                                        drawableItems.add(
-                                            DrawableItem(
-                                                triangle,
-                                                selectedColor.color
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        OperationType.DrawCubeSpline -> {
-                            if (event.buttons.isPrimaryPressed) {
-                                if (currentFigure.tempListForLinesCubicSpline.size == 4) {
-                                    currentFigure.tempListForLinesCubicSpline.clear()
-                                }
-                                if (event.buttons.isPrimaryPressed) {
-                                    currentFigure.tempListForLinesCubicSpline.add(position)
-                                    if (currentFigure.tempListForLinesCubicSpline.size == 4) {
-                                        val splinePoints =
-                                            cubicSplinePath(currentFigure.tempListForLinesCubicSpline)
-                                        drawableItems.add(
-                                            DrawableItem(
-                                                splinePoints,
-                                                selectedColor.color,
-                                                isCubicSpline = true
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        OperationType.WorkWithObject -> {
-                            scope.launch {
-                                pointAlpha.snapTo(1f)
-                                pointAlpha.animateTo(
-                                    0f,
-                                    animationSpec = tween(durationMillis = 2000)
-                                )
-                            }
-                        }
-                    }
-                }
         ) {
             for (drawableItem in drawableItems) {
                 if (!drawableItem.isCubicSpline) {
@@ -883,25 +966,11 @@ internal fun App() {
 
 fun computeTMO(
     tmoType: TmoType,
-    figureAIndex: Int?,
-    figureBIndex: Int?,
+    figureA: DrawableItem,
+    figureB: DrawableItem,
     drawableItems: SnapshotStateList<DrawableItem>,
     onResult: (SnapshotStateList<DrawableItem>) -> Unit
 ) {
-    if (figureAIndex == null || figureBIndex == null) {
-        return
-    }
-
-    val figureA = drawableItems.getOrNull(figureAIndex)
-    val figureB = drawableItems.getOrNull(figureBIndex)
-
-    if (figureA == null || figureB == null) {
-        return
-    }
-
-    figureA.tmoWasMake = false
-    figureB.tmoWasMake = false
-
     val newFigureLines = mutableListOf<Line>()
 
     val SetQ = when (tmoType) {
@@ -1244,7 +1313,9 @@ fun mirrorPoints(points: List<Offset>, center: Offset): List<Offset> {
 }
 
 fun getSelectedFigure(position: Offset, figures: List<DrawableItem>): DrawableItem? {
-    return figures.lastOrNull { isPointInside(position, it.offsetList) }
+    return figures.lastOrNull { drawableItem ->
+        isPointInside(position, drawableItem)
+    }
 }
 
 fun getCenterOfFigure(figure: DrawableItem): Offset {
@@ -1263,26 +1334,34 @@ fun getCenterOfFigure(figure: DrawableItem): Offset {
 }
 
 
-fun isPointInside(point: Offset, offsetList: List<Offset>): Boolean {
-    val x = point.x
-    val y = point.y
+fun isPointInside(point: Offset, drawableItem: DrawableItem): Boolean {
+    val offsetList = drawableItem.offsetList
+    if (offsetList.size == 2) {
+        val segmentStart = offsetList[0]
+        val segmentEnd = offsetList[1]
 
-    var inside = false
-    for (i in offsetList.indices) {
-        val x1 = offsetList[i].x
-        val y1 = offsetList[i].y
-        val x2 = offsetList[(i + 1) % offsetList.size].x
-        val y2 = offsetList[(i + 1) % offsetList.size].y
+        val minX = minOf(segmentStart.x, segmentEnd.x)
+        val maxX = maxOf(segmentStart.x, segmentEnd.x)
+        val minY = minOf(segmentStart.y, segmentEnd.y)
+        val maxY = maxOf(segmentStart.y, segmentEnd.y)
 
-        val intersect = ((y1 > y) != (y2 > y)) &&
-                (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)
+        return point.x in minX..maxX && point.y in minY..maxY
+    }
 
-        if (intersect) {
-            inside = !inside
+    var count = 0
+
+    for (i in 0 until offsetList.size) {
+        val current = offsetList[i]
+        val next = offsetList[(i + 1) % offsetList.size]
+
+        if ((current.y <= point.y && point.y < next.y || next.y <= point.y && point.y < current.y) &&
+            point.x < (next.x - current.x) * (point.y - current.y) / (next.y - current.y) + current.x
+        ) {
+            count++
         }
     }
 
-    return inside
+    return count % 2 != 0
 }
 
 fun rotatePoints(points: List<Offset>, center: Offset, angleDegrees: Float): List<Offset> {
@@ -1393,3 +1472,4 @@ fun getTmoList(): List<TmoWithName> {
 }
 
 internal expect fun openUrl(url: String?)
+internal expect fun getPlatformName(): String
