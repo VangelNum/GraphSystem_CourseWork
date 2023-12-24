@@ -67,9 +67,10 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import org.jetbrains.skia.Point
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 
 
@@ -117,9 +118,8 @@ internal fun App() {
             )
         )
     }
-    var drawableItems by remember {
-        mutableStateOf(mutableStateListOf<DrawableItem>())
-    }
+    var drawableItems = mutableStateListOf<DrawableItem>()
+
     var rotationAngle by remember { mutableStateOf("90") }
 
     var position by remember {
@@ -155,11 +155,6 @@ internal fun App() {
     var expandedTmo by remember {
         mutableStateOf(false)
     }
-
-    var tempDrawableItem by remember {
-        mutableStateOf(DrawableItem(offsetList = emptyList(), color = Color.Red))
-    }
-
     Scaffold(
         bottomBar = {
             BottomAppBar(
@@ -609,7 +604,7 @@ internal fun App() {
                                             selectedFigureB,
                                             drawableItems,
                                             onResult = {
-
+                                                drawableItems = it
                                             }
                                         )
                                     },
@@ -656,9 +651,25 @@ internal fun App() {
                                             )
                                         }
 
-                                        val updatedDrawableItem = drawableItem.copy(offsetList = transformedPoints)
+                                        val selectedDrawable = DrawableItem(
+                                            transformedPoints,
+                                            drawableItem.color
+                                        )
+                                        if (drawableItem.tmoWasMake == true) {
+                                            transformedPoints.chunked(2) { (xl, xr) ->
+                                                drawLine(
+                                                    color = drawableItem.color,
+                                                    strokeWidth = 2f,
+                                                    start = xl,
+                                                    end = xr
+                                                )
+                                            }
+                                        } else {
+                                            fillPrimitive(
+                                                selectedDrawable
+                                            )
+                                        }
 
-                                        fillPrimitive(updatedDrawableItem, updatedDrawableItem.color)
 
                                         if (showNumberOfFigures) {
                                             drawFigureNumberForChoosenFigure(
@@ -765,7 +776,7 @@ internal fun App() {
                                 currentFigure.offsetList.add(position)
                             }
                             if (event.buttons.isSecondaryPressed) {
-                                if (currentFigure.offsetList.isNotEmpty()) {
+                                if (currentFigure.offsetList.isNotEmpty() && currentFigure.offsetList.size > 1) {
                                     val drawableItem = DrawableItem(
                                         currentFigure.offsetList.toList(),
                                         selectedColor.color
@@ -810,7 +821,8 @@ internal fun App() {
                                 if (event.buttons.isPrimaryPressed) {
                                     currentFigure.tempListForLinesCubicSpline.add(position)
                                     if (currentFigure.tempListForLinesCubicSpline.size == 4) {
-                                        val splinePoints = cubicSplinePath(currentFigure.tempListForLinesCubicSpline)
+                                        val splinePoints =
+                                            cubicSplinePath(currentFigure.tempListForLinesCubicSpline)
                                         drawableItems.add(
                                             DrawableItem(
                                                 splinePoints,
@@ -833,16 +845,11 @@ internal fun App() {
                             }
                         }
                     }
-
                 }
-
         ) {
             for (drawableItem in drawableItems) {
                 if (!drawableItem.isCubicSpline) {
-                    fillPrimitive(
-                        drawableItem,
-                        drawableItem.color
-                    )
+                    fillPrimitive(drawableItem)
                 } else {
                     drawPathForCubicSpline(drawableItem)
                 }
@@ -870,17 +877,6 @@ internal fun App() {
             if (showNumberOfFigures) {
                 drawFigureNumbers(drawableItems, textMeasurer)
             }
-            tempDrawableItem.lines.forEach { line ->
-                drawLine(
-                    color = tempDrawableItem.color,
-                    start = Offset(
-                        line.xl.toFloat(),
-                        line.y.toFloat()
-                    ),
-                    end = Offset(line.xr.toFloat(), line.y.toFloat()),
-                    strokeWidth = 2f
-                )
-            }
         }
     }
 }
@@ -890,7 +886,7 @@ fun computeTMO(
     figureAIndex: Int?,
     figureBIndex: Int?,
     drawableItems: SnapshotStateList<DrawableItem>,
-    onResult: (List<DrawableItem>) -> Unit
+    onResult: (SnapshotStateList<DrawableItem>) -> Unit
 ) {
     if (figureAIndex == null || figureBIndex == null) {
         return
@@ -903,6 +899,9 @@ fun computeTMO(
         return
     }
 
+    figureA.tmoWasMake = false
+    figureB.tmoWasMake = false
+
     val newFigureLines = mutableListOf<Line>()
 
     val SetQ = when (tmoType) {
@@ -912,7 +911,6 @@ fun computeTMO(
 
     val YallMin: Int = getMinimumYBothFigure(figureA.lines, figureB.lines)
     val YallMax: Int = getMaximumYBothFigure(figureA.lines, figureB.lines)
-
     for (j in YallMin until YallMax) {
         val XaLine = filterLinesByY(figureA.lines, j)
         val XbLine = filterLinesByY(figureB.lines, j)
@@ -941,7 +939,29 @@ fun computeTMO(
             newFigureLines.add(Line(Xrl[i], Xrr[i], j))
         }
     }
+    val newDrawableItem = DrawableItem(
+        offsetList = calculateOffsets(newFigureLines),
+        color = figureA.color,
+        lines = newFigureLines,
+        tmoWasMake = true
+    )
+    drawableItems.remove(figureA)
+    drawableItems.remove(figureB)
+    drawableItems.add(newDrawableItem)
+    onResult(drawableItems)
 }
+
+fun calculateOffsets(newFigureLines: MutableList<Line>): List<Offset> {
+    val resultOffsets = mutableListOf<Offset>()
+
+    for (line in newFigureLines) {
+        resultOffsets.add(Offset(line.xl.toFloat(), line.y.toFloat()))
+        resultOffsets.add(Offset(line.xr.toFloat(), line.y.toFloat()))
+    }
+
+    return resultOffsets
+}
+
 
 fun buildMList(xaLines: List<Line>, xbLines: List<Line>): MutableList<BL> {
     val M = mutableListOf<BL>()
@@ -1007,25 +1027,6 @@ fun filterLinesByY(lines: List<Line>, y: Int): List<Line> {
     return filteredLines
 }
 
-fun getSegmentBounds(offsetList: List<Offset>): Pair<List<Float>, List<Float>> {
-    val xList = offsetList.map { it.x }
-
-    val sortedXList = xList.sorted()
-
-    val leftBounds = mutableListOf<Float>()
-    val rightBounds = mutableListOf<Float>()
-
-    for (i in 0 until sortedXList.size - 1) {
-        val left = sortedXList[i]
-        val right = sortedXList[i + 1]
-
-        leftBounds.add(left)
-        rightBounds.add(right)
-    }
-
-    return Pair(leftBounds, rightBounds)
-}
-
 fun getMinimumY(offsetList: List<Offset>): Int {
     return offsetList.minOf { it.y }.toInt()
 }
@@ -1034,60 +1035,82 @@ fun getMaximumY(offsetList: List<Offset>): Int {
     return offsetList.maxOf { it.y }.toInt()
 }
 
-fun DrawScope.fillPrimitive(
-    drawableItem: DrawableItem,
-    color: Color
-) {
-    drawableItem.lines.clear()
-    val vertexList = drawableItem.offsetList
-    val minY = getMinimumY(vertexList).coerceAtLeast(0)
-    val maxY = getMaximumY(vertexList).coerceAtMost(size.height.toInt())
-
-    val xb = mutableListOf<Float>()
-
-    // Перебираем все значения Y в диапазоне от minY до maxY
-    for (j in minY..maxY) {
-        xb.clear()
-
-        // Перебираем все точки полигона и находим пересечения с текущим значением Y
-        for (i in vertexList.indices) {
-            val k = if (i < vertexList.size - 1) i + 1 else 0
-
-            // Проверяем, пересекает ли линия полигон по Y
-            if ((vertexList[i].y > j && vertexList[k].y <= j) || (vertexList[k].y > j && vertexList[i].y <= j)) {
-                // Вычисляем координату X пересечения и добавляем ее в список
-                val x = vertexList[i].x + (j - vertexList[i].y) / (vertexList[k].y - vertexList[i].y) * (vertexList[k].x - vertexList[i].x)
-                xb.add(x)
-            }
-        }
-
-        xb.sort()
-
-        // Рисуем горизонтальные линии между парами значений X в списке xb
-        for (i in xb.indices step 2) {
-            val xStart = xb[i].toInt()
-            val xEnd = if (i + 1 < xb.size) xb[i + 1].toInt() else xStart
-
+fun DrawScope.fillPrimitive(drawableItem: DrawableItem) {
+    if (drawableItem.offsetList.size == 2) {
+        drawLine(
+            color = drawableItem.color,
+            strokeWidth = 2f,
+            start = drawableItem.offsetList[0],
+            end = drawableItem.offsetList[1]
+        )
+        return
+    }
+    if (drawableItem.tmoWasMake == true) {
+        val offsets = drawableItem.offsetList
+        offsets.chunked(2) { (xl, xr) ->
             drawLine(
-                color = color,
-                start = Offset(xStart.toFloat(), j.toFloat()),
-                end = Offset(xEnd.toFloat(), j.toFloat()),
-                strokeWidth = 2f
+                color = drawableItem.color,
+                strokeWidth = 2f,
+                start = xl,
+                end = xr
             )
-            // Добавляем линию в список для отображения и рисуем ее фоновым цветом
-            drawableItem.lines.add(Line(xStart, xEnd, j))
+        }
+    } else {
+        drawableItem.lines.clear()
+
+        val offsetList = drawableItem.offsetList
+        val minY = getMinimumY(offsetList)
+        val maxY = getMaximumY(offsetList)
+        val xb = mutableListOf<Float>()
+
+        for (y in minY..maxY) {
+            xb.clear()
+
+            for (i in offsetList.indices) {
+                val k = if (i < offsetList.size - 1) i + 1 else 0
+
+                if ((offsetList[i].y > y && offsetList[k].y <= y) || (offsetList[k].y > y && offsetList[i].y <= y)) {
+                    val x =
+                        offsetList[i].x + (y - offsetList[i].y) / (offsetList[k].y - offsetList[i].y) * (offsetList[k].x - offsetList[i].x)
+                    xb.add(x)
+                }
+            }
+
+            xb.sort()
+
+            // Add Offset values in the correct order
+            for (i in xb.indices step 2) {
+                val xl = xb[i].toInt()
+                val xr = if (i + 1 < xb.size) xb[i + 1].toInt() else xl
+                drawLine(
+                    color = drawableItem.color,
+                    strokeWidth = 2f,
+                    start = Offset(xl.toFloat(), y.toFloat()),
+                    end = Offset(xr.toFloat(), y.toFloat())
+                )
+                drawableItem.lines.add(Line(xl = xl, xr = xr, y = y))
+            }
         }
     }
 }
 
-private fun calculateBoundingBox(points: List<Offset>): Rect {
-    val left = points.minByOrNull { it.x }?.x ?: 0f
-    val right = points.maxByOrNull { it.x }?.x ?: 0f
-    val top = points.minByOrNull { it.y }?.y ?: 0f
-    val bottom = points.maxByOrNull { it.y }?.y ?: 0f
 
-    return Rect(left, top, right, bottom)
+fun calculateBoundingBox(offsetList: List<Offset>): Rect {
+    var minX = Float.MAX_VALUE
+    var minY = Float.MAX_VALUE
+    var maxX = Float.MIN_VALUE
+    var maxY = Float.MIN_VALUE
+
+    for (offset in offsetList) {
+        minX = min(minX, offset.x)
+        minY = min(minY, offset.y)
+        maxX = max(maxX, offset.x)
+        maxY = max(maxY, offset.y)
+    }
+
+    return Rect(minX, minY, maxX, maxY)
 }
+
 
 fun DrawScope.drawHelperForVerticalMirror(
     position: Offset,
@@ -1240,17 +1263,21 @@ fun getCenterOfFigure(figure: DrawableItem): Offset {
 }
 
 
-fun isPointInside(point: Offset, polygon: List<Offset>): Boolean {
+fun isPointInside(point: Offset, offsetList: List<Offset>): Boolean {
+    val x = point.x
+    val y = point.y
+
     var inside = false
-    val size = polygon.size
+    for (i in offsetList.indices) {
+        val x1 = offsetList[i].x
+        val y1 = offsetList[i].y
+        val x2 = offsetList[(i + 1) % offsetList.size].x
+        val y2 = offsetList[(i + 1) % offsetList.size].y
 
-    for (i in 0 until size) {
-        val current = polygon[i]
-        val next = polygon[(i + 1) % size]
+        val intersect = ((y1 > y) != (y2 > y)) &&
+                (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)
 
-        if ((current.y > point.y) != (next.y > point.y) &&
-            point.x < (next.x - current.x) * (point.y - current.y) / (next.y - current.y) + current.x
-        ) {
+        if (intersect) {
             inside = !inside
         }
     }

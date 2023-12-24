@@ -9,5 +9,6 @@ data class DrawableItem(
     val isCubicSpline: Boolean = false,
     var rotationAngle: Float = 0f,
     var rotationCenter: Offset? = null,
-    val lines: MutableList<Line> = mutableListOf()
+    val lines: MutableList<Line> = mutableListOf(),
+    var tmoWasMake: Boolean? = false
 )
