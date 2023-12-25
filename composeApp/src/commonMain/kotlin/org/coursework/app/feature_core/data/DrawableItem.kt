@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 import org.coursework.app.feature_tmo.data.Line
 
 data class DrawableItem(
-    var offsetList: List<Offset>,
+    var offsetList: MutableList<Offset>,
     val color: Color,
     val isCubicSpline: Boolean = false,
     var rotationAngle: Float = 0f,

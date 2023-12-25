@@ -1,5 +1,6 @@
 @file:OptIn(
     ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class,
     ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class
 )
 
@@ -393,7 +394,7 @@ internal fun App() {
                             if (selectedOperation.operation == OperationType.DrawPrimitive) {
                                 if (currentFigure.offsetList.isNotEmpty() && currentFigure.offsetList.size > 1) {
                                     val drawableItem = DrawableItem(
-                                        currentFigure.offsetList.toList(),
+                                        currentFigure.offsetList.toMutableList(),
                                         selectedColor.color
                                     )
                                     drawableItems.add(drawableItem)
@@ -420,7 +421,7 @@ internal fun App() {
                                         if (event.buttons.isSecondaryPressed) {
                                             if (currentFigure.offsetList.isNotEmpty() && currentFigure.offsetList.size > 1) {
                                                 val drawableItem = DrawableItem(
-                                                    currentFigure.offsetList.toList(),
+                                                    currentFigure.offsetList.toMutableList(),
                                                     selectedColor.color
                                                 )
                                                 drawableItems.add(drawableItem)
@@ -498,9 +499,10 @@ internal fun App() {
                                 selectedFigure = getSelectedFigure(position, drawableItems)
                             }
                             selectedFigure?.let { draggedFigure ->
-                                draggedFigure.offsetList = draggedFigure.offsetList.map {
-                                    Offset(it.x + dragAmount.x, it.y + dragAmount.y)
-                                }
+                                // Обновление позиции фигуры на основе dragAmount
+                                draggedFigure.offsetList = draggedFigure.offsetList.map { it + dragAmount }.toMutableList()
+
+                                selectedFigure = draggedFigure
                             }
                         }
                     }
@@ -633,7 +635,7 @@ fun ChoosenFigureSection(
                             it.x * scaleX + translateX,
                             it.y * scaleY + translateY
                         )
-                    }
+                    }.toMutableList()
 
                     val selectedDrawable = DrawableItem(
                         transformedPoints,

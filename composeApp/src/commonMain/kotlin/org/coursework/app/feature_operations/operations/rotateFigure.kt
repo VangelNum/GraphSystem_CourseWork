@@ -5,7 +5,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-fun rotateFigure(points: List<Offset>, center: Offset, angleDegrees: Float): List<Offset> {
+fun rotateFigure(points: List<Offset>, center: Offset, angleDegrees: Float): MutableList<Offset> {
     val resultPoints = mutableListOf<Offset>()
 
     val angleRadians = angleDegrees / 180 * PI
@@ -22,5 +22,5 @@ fun rotateFigure(points: List<Offset>, center: Offset, angleDegrees: Float): Lis
         resultPoints.add(Offset(rotatedX.toFloat() + center.x, rotatedY.toFloat() + center.y))
     }
 
-    return resultPoints
+    return resultPoints.toMutableList()
 }

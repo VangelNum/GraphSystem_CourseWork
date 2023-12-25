@@ -6,6 +6,7 @@ import org.coursework.app.feature_core.data.DrawableItem
 import org.coursework.app.feature_operations.operations.getMaximumY
 import org.coursework.app.feature_operations.operations.getMinimumY
 import org.coursework.app.feature_tmo.data.Line
+import org.coursework.app.feature_tmo.operations.calculateOffsets
 
 fun DrawScope.fillPrimitive(drawableItem: DrawableItem) {
     if (drawableItem.offsetList.size == 2) {
@@ -19,13 +20,17 @@ fun DrawScope.fillPrimitive(drawableItem: DrawableItem) {
     }
     if (drawableItem.tmoWasMake == true) {
         val offsets = drawableItem.offsetList
-        offsets.chunked(2) { (xl, xr) ->
+        drawableItem.lines.clear()
+        for (i in offsets.indices step 2) {
+            val xl = offsets[i].x
+            val xr = if (i + 1 < offsets.size) offsets[i + 1].x else xl
             drawLine(
                 color = drawableItem.color,
                 strokeWidth = 2f,
-                start = xl,
-                end = xr
+                start = Offset(xl, offsets[i].y),
+                end = Offset(xr, offsets[i + 1].y)
             )
+            drawableItem.lines.add(Line(xl = xl.toInt(), xr = xr.toInt(), y = offsets[i].y.toInt()))
         }
     } else {
         drawableItem.lines.clear()

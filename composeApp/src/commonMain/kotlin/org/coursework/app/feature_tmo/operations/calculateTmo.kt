@@ -16,6 +16,8 @@ fun calculateTmo(
 ) {
     val newFigureLines = mutableListOf<Line>()
 
+
+
     val SetQ = when (tmoType) {
         TmoType.MERGE -> shortArrayOf(1, 3)
         TmoType.DIFFERENCE -> shortArrayOf(2, 2)
@@ -54,7 +56,7 @@ fun calculateTmo(
     val newDrawableItem = DrawableItem(
         offsetList = calculateOffsets(newFigureLines),
         color = figureA.color,
-        lines = newFigureLines,
+        lines = newFigureLines.toMutableList(),
         tmoWasMake = true
     )
     drawableItems.remove(figureA)
@@ -63,7 +65,7 @@ fun calculateTmo(
     onResult(drawableItems)
 }
 
-fun calculateOffsets(newFigureLines: MutableList<Line>): List<Offset> {
+fun calculateOffsets(newFigureLines: MutableList<Line>): MutableList<Offset> {
     val resultOffsets = mutableListOf<Offset>()
 
     for (line in newFigureLines) {

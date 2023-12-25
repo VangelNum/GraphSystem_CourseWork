@@ -4,7 +4,7 @@ import androidx.compose.ui.geometry.Offset
 
 fun cubicSplinePathCalculate(
     selectedPoints: List<Offset>
-): List<Offset> {
+): MutableList<Offset> {
     val resultPoints = mutableListOf<Offset>()
     if (selectedPoints.size >= 4) {
         val pv1 = Offset(
@@ -48,5 +48,5 @@ fun cubicSplinePathCalculate(
             t += dt
         }
     }
-    return resultPoints
+    return resultPoints.toMutableList()
 }
