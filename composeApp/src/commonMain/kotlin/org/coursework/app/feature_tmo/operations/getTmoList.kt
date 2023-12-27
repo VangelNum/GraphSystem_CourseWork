@@ -8,6 +8,6 @@ import org.coursework.app.feature_tmo.data.TmoWithName
 fun getTmoList(): List<TmoWithName> {
     return listOf(
         TmoWithName(TmoType.MERGE, "Объединение"),
-        TmoWithName(TmoType.DIFFERENCE, "Разность")
+        TmoWithName(TmoType.DIFFERENCE, "Разность A/B")
     )
 }

@@ -1,14 +1,16 @@
 @file:OptIn(
     ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class,
     ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class,
-    ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class
+    ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3Api::class, ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3Api::class
 )
 
 package org.coursework.app
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -28,10 +30,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Done
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -39,6 +43,7 @@ import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,34 +78,30 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.coursework.app.feature_core.data.ColorWithName
-import org.coursework.app.feature_current_figure.data.CurrentFigure
 import org.coursework.app.feature_core.data.DrawableItem
+import org.coursework.app.feature_core.getColorList
 import org.coursework.app.feature_cubic_spline.operations.cubicSplinePathCalculate
 import org.coursework.app.feature_cubic_spline.presentation.drawPathForCubicSpline
 import org.coursework.app.feature_cubic_spline.presentation.drawTempLinesAndPointForCubicSpline
+import org.coursework.app.feature_current_figure.data.CurrentFigure
+import org.coursework.app.feature_current_figure.presentation.drawPathAndPointsForCurrentFigure
 import org.coursework.app.feature_default_primitive.data.PrimitiveTypeWithName
 import org.coursework.app.feature_default_primitive.data.TypeOfPrimitive
 import org.coursework.app.feature_default_primitive.operations.calculateFlagPoints
 import org.coursework.app.feature_default_primitive.operations.calculateRectangularTrianglePoints
-import org.coursework.app.feature_operations.data.OperationType
-import org.coursework.app.feature_operations.data.OperationWithName
-import org.coursework.app.feature_selected_figure.operations.calculateBoundingBox
-import org.coursework.app.feature_selected_figure.presentation.drawFigureNumberForChosenFigure
-import org.coursework.app.feature_operations.presentation.fillPrimitive
-import org.coursework.app.feature_operations.operations.getCenterOfFigure
-import org.coursework.app.feature_core.getColorList
-import org.coursework.app.feature_operations.operations.getOperationList
 import org.coursework.app.feature_default_primitive.operations.getPrimitiveList
-import org.coursework.app.feature_selected_figure.operations.getSelectedFigure
-import org.coursework.app.feature_tmo.operations.getTmoList
-import org.coursework.app.feature_operations.operations.mirrorPointsSelectedCenter
-import org.coursework.app.feature_operations.operations.mirrorPointsVertical
-import org.coursework.app.feature_operations.operations.rotateFigure
+import org.coursework.app.feature_operations.data.OperationType
+import org.coursework.app.feature_operations.operations.getCenterOfFigure
+import org.coursework.app.feature_operations.operations.getOperationList
 import org.coursework.app.feature_operations.presentation.drawFigureNumbers
 import org.coursework.app.feature_operations.presentation.drawHelperForVerticalMirror
-import org.coursework.app.feature_current_figure.presentation.drawPathAndPointsForCurrentFigure
+import org.coursework.app.feature_operations.presentation.fillPrimitive
+import org.coursework.app.feature_selected_figure.operations.calculateBoundingBox
+import org.coursework.app.feature_selected_figure.operations.getSelectedFigure
+import org.coursework.app.feature_selected_figure.presentation.drawFigureNumberForChosenFigure
 import org.coursework.app.feature_tmo.data.TmoWithName
 import org.coursework.app.feature_tmo.operations.calculateTmo
+import org.coursework.app.feature_tmo.operations.getTmoList
 
 
 val widthOfButtons = 250.dp
@@ -153,7 +154,6 @@ internal fun App() {
     var position by remember {
         mutableStateOf(Offset(0f, 0f))
     }
-    val pointAlpha = remember { Animatable(initialValue = 1f) }
     val scope = rememberCoroutineScope()
     var selectedFigure by remember {
         mutableStateOf<DrawableItem?>(null)
@@ -163,6 +163,9 @@ internal fun App() {
         mutableStateOf(false)
     }
     var showCheckBoxForVerticalLine by remember {
+        mutableStateOf(false)
+    }
+    var showCheckBoxForRotate by remember {
         mutableStateOf(false)
     }
     var expandedFigureA by remember {
@@ -184,201 +187,284 @@ internal fun App() {
         mutableStateOf(false)
     }
     val snackbarHostState = remember { SnackbarHostState() }
+    var showBottomBar by remember {
+        mutableStateOf(true)
+    }
+    var showPoint by remember {
+        mutableStateOf(false)
+    }
     Scaffold(
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState)
         },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    showBottomBar = !showBottomBar
+                }
+            ) {
+                Icon(
+                    imageVector = if (showBottomBar) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                    contentDescription = null
+                )
+            }
+        },
 
         bottomBar = {
-            BottomAppBar(
-                modifier = Modifier.height(180.dp)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxSize().padding(8.dp).horizontalScroll(
-                        rememberScrollState()
-                    )
+            AnimatedVisibility(
+                showBottomBar,
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it }) {
+                BottomAppBar(
+                    modifier = Modifier.height(180.dp),
                 ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxSize().padding(8.dp).horizontalScroll(
+                            rememberScrollState()
+                        )
                     ) {
-                        ChooseOperationSection(
-                            expandedOperation = expandedOperation,
-                            onExpandedOperationChange = {
-                                expandedOperation = it
-                            },
-                            selectedOperation = selectedOperation,
-                            onSelectedOperationChange = {
-                                selectedOperation = it
-                            },
-                            onClickWorkWithObject = {
-                                position = Offset(0f, 0f)
-                            },
-                            operationList = operationList,
-                            onClickDrawCubicSpline = {
-                                currentFigure.isCubicSpline = true
-                            },
-                            onClickAnotherOperation = {
-                                currentFigure.isCubicSpline = false
-                                currentFigure.tempListForLinesCubicSpline.clear()
-                            }
-                        )
-                        Column {
-                            AnimatedVisibility(selectedOperation.operation != OperationType.WorkWithObject) {
-                                ChooseColorSection(
-                                    expandedColor = expandedColor,
-                                    onExpandedColorChange = {
-                                        expandedColor = it
-                                    },
-                                    selectedColor = selectedColor,
-                                    onColorSelectedChange = {
-                                        selectedColor = it
-                                    },
-                                    colorList = colorList
-                                )
-                            }
-                            AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject && selectedFigure != null) {
-                                ChooseRotationSection(
-                                    rotationAngle = rotationAngle,
-                                    onRotationAngleChange = {
-                                        rotationAngle = it
-                                    },
-                                    selectedFigure = selectedFigure,
-                                    position = position
-                                )
-                            }
-                        }
-                    }
-                    AnimatedVisibility(selectedOperation.operation == OperationType.PastPrimitive) {
-                        ChoosePrimitiveSection(
-                            expandedPrimitive = expandedPrimitive,
-                            onExpandedPrimitiveChange = {
-                                expandedPrimitive = it
-                            },
-                            selectedPrimitive = selectedPrimitive,
-                            onSelectedPrimitiveChange = {
-                                selectedPrimitive = it
-                            },
-                            primitiveList = primitiveList
-                        )
-                    }
-                    AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject && selectedFigure != null) {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            MirrorCenterFigureSection(
-                                selectedFigure
-                            )
-                            MirrorVerticalFigureSection(
-                                selectedFigure,
-                                position,
-                                showCheckBoxForVerticalLine,
-                                onShowCheckBoxChange = {
-                                    showCheckBoxForVerticalLine = !it
-                                }
-                            )
-                        }
-                    }
-                    AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ChooseFigureASection(
-                                expandedFigureA = expandedFigureA,
-                                onExpandedFigureA = {
-                                    expandedFigureA = it
-                                },
-                                selectedFigureAIndex = selectedFigureAIndex,
-                                onSelectedFigureAIndex = {
-                                    selectedFigureAIndex = it
-                                },
-                                drawableItems = drawableItems
-                            )
-                            ChooseTmoSection(
-                                expandedTmo,
-                                onExpandedTmoChange = {
-                                    expandedTmo = it
-                                },
-                                selectedTmo = selectedTmo,
-                                onSelectedTmoChange = {
-                                    selectedTmo = it
-                                },
-                                tmoList = tmoList
-                            )
-                        }
-                    }
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("Выбор операции", style = textStyle)
+                                ExposedDropdownMenuBox(
+                                    expanded = expandedOperation,
+                                    onExpandedChange = {
+                                        expandedOperation = it
+                                    }
+                                ) {
+                                    OutlinedTextField(
+                                        value = selectedOperation.name,
+                                        onValueChange = {
 
-                    AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            ChooseFigureBSection(
-                                expandedFigureB = expandedFigureB,
-                                onExpandedFigureB = {
-                                    expandedFigureB = it
+                                        },
+                                        readOnly = true,
+                                        trailingIcon = {
+                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedOperation)
+                                        },
+                                        modifier = Modifier.menuAnchor().width(widthOfButtons)
+                                            .height(heightOfButtons),
+                                        textStyle = textStyle
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = expandedOperation,
+                                        onDismissRequest = {
+                                            expandedOperation = false
+                                        }
+                                    ) {
+                                        operationList.forEach { operationWithName ->
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Text(
+                                                        operationWithName.name
+                                                    )
+                                                },
+                                                onClick = {
+                                                    selectedOperation = operationWithName
+                                                    if (selectedOperation.operation == OperationType.DrawCubeSpline) {
+                                                        currentFigure.isCubicSpline = true
+                                                        showCheckBoxForVerticalLine = false
+                                                        showCheckBoxForRotate = false
+                                                    } else {
+                                                        showCheckBoxForVerticalLine = false
+                                                        showCheckBoxForRotate = false
+                                                        currentFigure.isCubicSpline = false
+                                                        currentFigure.tempListForLinesCubicSpline.clear()
+                                                    }
+                                                    if (selectedOperation.operation == OperationType.WorkWithObject) {
+                                                        position = Offset(0f, 0f)
+                                                    }
+                                                    expandedOperation = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Column {
+                                AnimatedVisibility(selectedOperation.operation != OperationType.WorkWithObject) {
+                                    ChooseColorSection(
+                                        expandedColor = expandedColor,
+                                        onExpandedColorChange = {
+                                            expandedColor = it
+                                        },
+                                        selectedColor = selectedColor,
+                                        onColorSelectedChange = {
+                                            selectedColor = it
+                                        },
+                                        colorList = colorList
+                                    )
+                                }
+                                AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject && selectedFigure != null) {
+                                    ChooseRotationSection(
+                                        rotationAngle = rotationAngle,
+                                        onRotationAngleChange = {
+                                            rotationAngle = it
+                                        },
+                                        showCheckBoxForRotate = showCheckBoxForRotate,
+                                        onShowCheckBoxForRotateChange = {
+                                            showCheckBoxForRotate = !it
+                                        }
+                                    ) {
+                                        selectedFigure?.let { figure ->
+                                            figure.rotateFigure(
+                                                center = position,
+                                                rotationAngle = rotationAngle.toInt().toFloat()
+                                            )
+                                        }
+                                        showPoint = false
+                                    }
+                                }
+                            }
+                        }
+                        AnimatedVisibility(selectedOperation.operation == OperationType.PastPrimitive) {
+                            ChoosePrimitiveSection(
+                                expandedPrimitive = expandedPrimitive,
+                                onExpandedPrimitiveChange = {
+                                    expandedPrimitive = it
                                 },
-                                selectedFigureBIndex = selectedFigureBIndex,
-                                onSelectedFigureBIndex = {
-                                    selectedFigureBIndex = it
+                                selectedPrimitive = selectedPrimitive,
+                                onSelectedPrimitiveChange = {
+                                    selectedPrimitive = it
                                 },
-                                drawableItems = drawableItems
+                                primitiveList = primitiveList
                             )
-                            ApplyTmoSection(
-                                selectedFigureAIndex = selectedFigureAIndex,
-                                selectedFigureBIndex = selectedFigureBIndex,
+                        }
+                        AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject && selectedFigure != null) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                MirrorCenterFigureSection {
+                                    selectedFigure?.let { figure ->
+                                        val center = getCenterOfFigure(figure)
+                                        figure.mirrorPointsCenterFigure(center)
+                                    }
+                                    showPoint = false
+                                }
+                                MirrorVerticalFigureSection(
+                                    showCheckBoxForVerticalLine,
+                                    onShowCheckBoxChange = {
+                                        showCheckBoxForVerticalLine = !it
+                                    }
+                                ) {
+                                    selectedFigure?.let { figure ->
+                                        figure.mirrorPointsVertical(position.x)
+                                    }
+                                    showPoint = false
+                                    showCheckBoxForVerticalLine = false
+                                }
+                            }
+                        }
+                        AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                ChooseFigureASection(
+                                    expandedFigureA = expandedFigureA,
+                                    onExpandedFigureA = {
+                                        expandedFigureA = it
+                                    },
+                                    selectedFigureAIndex = selectedFigureAIndex,
+                                    onSelectedFigureAIndex = {
+                                        selectedFigureAIndex = it
+                                    },
+                                    drawableItems = drawableItems
+                                )
+                                ChooseTmoSection(
+                                    expandedTmo,
+                                    onExpandedTmoChange = {
+                                        expandedTmo = it
+                                    },
+                                    selectedTmo = selectedTmo,
+                                    onSelectedTmoChange = {
+                                        selectedTmo = it
+                                    },
+                                    tmoList = tmoList
+                                )
+                            }
+                        }
+
+                        AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                ChooseFigureBSection(
+                                    expandedFigureB = expandedFigureB,
+                                    onExpandedFigureB = {
+                                        expandedFigureB = it
+                                    },
+                                    selectedFigureBIndex = selectedFigureBIndex,
+                                    onSelectedFigureBIndex = {
+                                        selectedFigureBIndex = it
+                                    },
+                                    drawableItems = drawableItems
+                                )
+                                ApplyTmoSection(
+                                    selectedFigureAIndex = selectedFigureAIndex,
+                                    selectedFigureBIndex = selectedFigureBIndex,
+                                    drawableItems = drawableItems,
+                                    onDrawableItemsChange = {
+                                        drawableItems = it
+                                    },
+                                    selectedTmo = selectedTmo,
+                                    scope = scope,
+                                    snackbarHostState = snackbarHostState,
+                                    onSelectedFigureAIndexChange = {
+                                        selectedFigureAIndex = null
+                                    },
+                                    onSelectedFigureBIndexChange = {
+                                        selectedFigureBIndex = null
+                                    },
+                                    onShowPointChange = {
+                                        showPoint = false
+                                    }
+                                )
+
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+                        AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject && selectedFigure != null) {
+                            ChoosenFigureSection(
+                                selectedFigure = selectedFigure,
                                 drawableItems = drawableItems,
-                                onDrawableItemsChange = {
-                                    drawableItems = it
-                                },
-                                selectedTmo = selectedTmo,
-                                scope = scope,
-                                snackbarHostState = snackbarHostState,
-                                onSelectedFigureAIndexChange = {
-                                    selectedFigureAIndex = null
-                                },
-                                onSelectedFigureBIndexChange = {
-                                    selectedFigureBIndex = null
+                                showNumberOfFigures = showNumberOfFigures,
+                                textMeasurer = textMeasurer,
+                                onIconClick = {
+                                    drawableItems.remove(selectedFigure)
+                                    selectedFigure = null
+                                }
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            ShowNumberOfFigureSection(
+                                showNumberOfFigures = showNumberOfFigures,
+                                onClick = {
+                                    showNumberOfFigures = !showNumberOfFigures
                                 }
                             )
 
+                            ClearPictureBoxSection(
+                                onClick = {
+                                    drawableItems.clear()
+                                    currentFigure.offsetList.clear()
+                                    currentFigure.tempListForLinesCubicSpline.clear()
+                                    selectedFigureAIndex = null
+                                    selectedFigureBIndex = null
+                                    selectedFigure = null
+                                },
+                            )
+
                         }
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-                    AnimatedVisibility(selectedOperation.operation == OperationType.WorkWithObject && selectedFigure != null) {
-                        ChoosenFigureSection(
-                            selectedFigure = selectedFigure,
-                            drawableItems = drawableItems,
-                            showNumberOfFigures = showNumberOfFigures,
-                            textMeasurer = textMeasurer,
-                            onIconClick = {
-                                drawableItems.remove(selectedFigure)
-                                selectedFigure = null
-                            }
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        ShowNumberOfFigureSection(
-                            showNumberOfFigures = showNumberOfFigures,
-                            onClick = {
-                                showNumberOfFigures = !showNumberOfFigures
-                            }
-                        )
-
-                        ClearPictureBoxSection(
-                            onClick = {
-                                drawableItems.clear()
-                                currentFigure.offsetList.clear()
-                                currentFigure.tempListForLinesCubicSpline.clear()
-                                selectedFigureAIndex = null
-                                selectedFigureBIndex = null
-                                selectedFigure = null
-                            },
-                        )
-
                     }
                 }
             }
@@ -410,7 +496,8 @@ internal fun App() {
                             val event = awaitPointerEvent()
                             if (event.type == PointerEventType.Press) {
                                 position = event.changes.first().position
-                                if (!showCheckBoxForVerticalLine) {
+                                showPoint = true
+                                if (!showCheckBoxForVerticalLine && !showCheckBoxForRotate) {
                                     selectedFigure = getSelectedFigure(position, drawableItems)
                                 }
                                 when (selectedOperation.operation) {
@@ -434,7 +521,8 @@ internal fun App() {
                                         if (event.buttons.isPrimaryPressed || event.buttons.indexOfFirstPressed() == -1) {
                                             when (selectedPrimitive.type) {
                                                 TypeOfPrimitive.FLAG -> {
-                                                    val flag = calculateFlagPoints(position.x, position.y)
+                                                    val flag =
+                                                        calculateFlagPoints(position.x, position.y)
                                                     drawableItems.add(
                                                         DrawableItem(
                                                             flag,
@@ -444,7 +532,11 @@ internal fun App() {
                                                 }
 
                                                 TypeOfPrimitive.RECTANGULARTRIANGLE -> {
-                                                    val triangle = calculateRectangularTrianglePoints(position.x, position.y)
+                                                    val triangle =
+                                                        calculateRectangularTrianglePoints(
+                                                            position.x,
+                                                            position.y
+                                                        )
                                                     drawableItems.add(
                                                         DrawableItem(
                                                             triangle,
@@ -478,13 +570,7 @@ internal fun App() {
                                     }
 
                                     OperationType.WorkWithObject -> {
-                                        scope.launch {
-                                            pointAlpha.snapTo(1f)
-                                            pointAlpha.animateTo(
-                                                0f,
-                                                animationSpec = tween(durationMillis = 2000)
-                                            )
-                                        }
+
                                     }
                                 }
                             }
@@ -493,16 +579,19 @@ internal fun App() {
                 }
                 .pointerInput(Unit) {
                     detectDragGestures { change, dragAmount ->
-                        if (selectedOperation.operation == OperationType.WorkWithObject && !showCheckBoxForVerticalLine) {
+                        if (selectedOperation.operation == OperationType.WorkWithObject && !showCheckBoxForVerticalLine && !showCheckBoxForRotate) {
                             position = change.position
                             if (selectedFigure == null) {
                                 selectedFigure = getSelectedFigure(position, drawableItems)
                             }
                             selectedFigure?.let { draggedFigure ->
-                                // Обновление позиции фигуры на основе dragAmount
-                                draggedFigure.offsetList = draggedFigure.offsetList.map { it + dragAmount }.toMutableList()
-
-                                selectedFigure = draggedFigure
+                                draggedFigure.dragFigure(
+                                    dx = dragAmount.x,
+                                    dy = dragAmount.y,
+                                    onSelectedFigure = {
+                                        selectedFigure = it
+                                    }
+                                )
                             }
                         }
                     }
@@ -531,9 +620,9 @@ internal fun App() {
             if (selectedOperation.operation == OperationType.WorkWithObject) {
                 drawHelperForVerticalMirror(
                     position = position,
-                    pointAlpha = pointAlpha.value,
                     selectedFigure = selectedFigure,
-                    showCheckBoxForVerticalLine = showCheckBoxForVerticalLine
+                    showCheckBoxForVerticalLine = showCheckBoxForVerticalLine,
+                    showPoint = showPoint,
                 )
             }
             if (showNumberOfFigures) {
@@ -692,7 +781,8 @@ fun ApplyTmoSection(
     scope: CoroutineScope,
     snackbarHostState: SnackbarHostState,
     onSelectedFigureAIndexChange: (Unit?) -> Unit,
-    onSelectedFigureBIndexChange: (Unit?) -> Unit
+    onSelectedFigureBIndexChange: (Unit?) -> Unit,
+    onShowPointChange: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -735,6 +825,7 @@ fun ApplyTmoSection(
                             onDrawableItemsChange(it)
                         }
                     )
+                    onShowPointChange()
                     onSelectedFigureAIndexChange(null)
                     onSelectedFigureBIndexChange(null)
                 },
@@ -920,23 +1011,15 @@ fun ChooseFigureBSection(
 
 @Composable
 fun MirrorVerticalFigureSection(
-    selectedFigure: DrawableItem?,
-    position: Offset,
     showCheckBoxForVerticalLine: Boolean,
-    onShowCheckBoxChange: (Boolean) -> Unit
+    onShowCheckBoxChange: (Boolean) -> Unit,
+    onClick: () -> Unit
 ) {
     Box(modifier = Modifier.padding(top = topPadding)) {
         ElevatedButton(
             modifier = Modifier.width(widthOfButtons + 60.dp)
                 .height(heightOfButtons),
-            onClick = {
-                selectedFigure?.let { figure ->
-                    figure.offsetList = mirrorPointsVertical(
-                        figure.offsetList,
-                        position.x
-                    )
-                }
-            },
+            onClick = onClick,
             shape = MaterialTheme.shapes.small,
             border = ButtonDefaults.outlinedButtonBorder
         ) {
@@ -972,18 +1055,13 @@ fun MirrorVerticalFigureSection(
 
 @Composable
 fun MirrorCenterFigureSection(
-    selectedFigure: DrawableItem?
+    onClick: () -> Unit
 ) {
     Box(modifier = Modifier.padding(top = topPadding)) {
         ElevatedButton(
             modifier = Modifier.width(widthOfButtons + 60.dp)
                 .height(heightOfButtons),
-            onClick = {
-                selectedFigure?.let { figure ->
-                    val center = getCenterOfFigure(figure)
-                    figure.offsetList = mirrorPointsSelectedCenter(figure.offsetList, center)
-                }
-            },
+            onClick = onClick,
             shape = MaterialTheme.shapes.small,
             border = ButtonDefaults.outlinedButtonBorder
         ) {
@@ -1055,8 +1133,9 @@ fun ChoosePrimitiveSection(
 fun ChooseRotationSection(
     rotationAngle: String,
     onRotationAngleChange: (String) -> Unit,
-    selectedFigure: DrawableItem?,
-    position: Offset
+    showCheckBoxForRotate: Boolean,
+    onShowCheckBoxForRotateChange: (Boolean) -> Unit,
+    onIconClick: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1072,25 +1151,24 @@ fun ChooseRotationSection(
                 .height(heightOfButtons),
             singleLine = true,
             trailingIcon = {
-                IconButton(
-                    onClick = {
-                        selectedFigure?.let { item ->
-                            item.rotationCenter = position
-                            item.rotationAngle =
-                                rotationAngle.toInt().toFloat()
-                            item.offsetList = rotateFigure(
-                                item.offsetList,
-                                item.rotationCenter!!,
-                                item.rotationAngle
-                            )
-                        }
+                Row {
+                    IconButton(onClick = {
+                        onShowCheckBoxForRotateChange(showCheckBoxForRotate)
+                    }) {
+                        Icon(
+                            imageVector = if (showCheckBoxForRotate) Icons.Outlined.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
+                            contentDescription = null
+                        )
                     }
-                ) {
-                    Icon(
-                        tint = Color.Green,
-                        imageVector = Icons.Outlined.Done,
-                        contentDescription = null
-                    )
+                    IconButton(
+                        onClick = onIconClick
+                    ) {
+                        Icon(
+                            tint = Color.Green,
+                            imageVector = Icons.Outlined.Autorenew,
+                            contentDescription = null
+                        )
+                    }
                 }
             }
         )
@@ -1144,74 +1222,6 @@ fun ChooseColorSection(
                         onClick = {
                             onColorSelectedChange(colorWithName)
                             onExpandedColorChange(false)
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ChooseOperationSection(
-    expandedOperation: Boolean,
-    onExpandedOperationChange: (Boolean) -> Unit,
-    selectedOperation: OperationWithName,
-    onSelectedOperationChange: (OperationWithName) -> Unit,
-    onClickWorkWithObject: () -> Unit,
-    operationList: List<OperationWithName>,
-    onClickDrawCubicSpline: () -> Unit,
-    onClickAnotherOperation: () -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text("Выбор операции", style = textStyle)
-        ExposedDropdownMenuBox(
-            expanded = expandedOperation,
-            onExpandedChange = {
-                onExpandedOperationChange(it)
-            }
-        ) {
-            OutlinedTextField(
-                value = selectedOperation.name,
-                onValueChange = {
-
-                },
-                readOnly = true,
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedOperation)
-                },
-                modifier = Modifier.menuAnchor().width(widthOfButtons)
-                    .height(heightOfButtons),
-                textStyle = textStyle
-            )
-
-            ExposedDropdownMenu(
-                expanded = expandedOperation,
-                onDismissRequest = {
-                    onExpandedOperationChange(false)
-                }
-            ) {
-                operationList.forEach { operationWithName ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                operationWithName.name
-                            )
-                        },
-                        onClick = {
-                            onSelectedOperationChange(operationWithName)
-                            if (selectedOperation.operation == OperationType.DrawCubeSpline) {
-                                onClickDrawCubicSpline()
-                            } else {
-                                onClickAnotherOperation()
-                            }
-                            if (selectedOperation.operation == OperationType.WorkWithObject) {
-                                onClickWorkWithObject()
-                            }
-                            onExpandedOperationChange(false)
                         }
                     )
                 }

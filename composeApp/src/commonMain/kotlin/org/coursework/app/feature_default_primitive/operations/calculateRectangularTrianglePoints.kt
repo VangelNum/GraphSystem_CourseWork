@@ -4,7 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 
 fun calculateRectangularTrianglePoints(x: Float, y: Float): MutableList<Offset> {
-    val sizeOfTriangle = 75.dp.value
+    val sizeOfTriangle = 150.dp.value
     return mutableListOf(
         Offset(0f + x, 0f + y),
         Offset(sizeOfTriangle + x, 0f + y),

@@ -4,8 +4,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 
 fun calculateFlagPoints(x: Float, y: Float): MutableList<Offset> {
-    val flagWidth = 100.dp.value
-    val flagHeight = 75.dp.value
+    val flagWidth = 200.dp.value
+    val flagHeight = 150.dp.value
     return mutableListOf(
         Offset(0f + x, 0f + y),
         Offset(flagWidth + x, 0f + y),

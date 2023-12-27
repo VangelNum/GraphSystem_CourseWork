@@ -3,6 +3,7 @@ package org.coursework.app.feature_tmo.operations
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.geometry.Offset
 import org.coursework.app.feature_core.data.DrawableItem
+import org.coursework.app.feature_operations.operations.getMaximumY
 import org.coursework.app.feature_tmo.data.BL
 import org.coursework.app.feature_tmo.data.Line
 import org.coursework.app.feature_tmo.data.TmoType
@@ -16,18 +17,19 @@ fun calculateTmo(
 ) {
     val newFigureLines = mutableListOf<Line>()
 
-
-
     val SetQ = when (tmoType) {
         TmoType.MERGE -> shortArrayOf(1, 3)
         TmoType.DIFFERENCE -> shortArrayOf(2, 2)
     }
 
-    val YallMin: Int = getMinimumYBothFigure(figureA.lines, figureB.lines)
-    val YallMax: Int = getMaximumYBothFigure(figureA.lines, figureB.lines)
+    val figureLinesA = calculateLines(figureA)
+    val figureLinesB = calculateLines(figureB)
+
+    val YallMin: Int = getMinimumYBothFigure(figureLinesA, figureLinesB)
+    val YallMax: Int = getMaximumYBothFigure(figureLinesA, figureLinesB)
     for (j in YallMin until YallMax) {
-        val XaLine = filterLinesByY(figureA.lines, j)
-        val XbLine = filterLinesByY(figureB.lines, j)
+        val XaLine = filterLinesByY(figureLinesA, j)
+        val XbLine = filterLinesByY(figureLinesB, j)
         val M = buildMList(XaLine, XbLine)
         M.sortBy { it.x }
         var Q = 0
@@ -38,7 +40,7 @@ fun calculateTmo(
         M.forEach { mItem ->
             val x = mItem.x
             Qnew = Q + mItem.dQ
-
+            //не принадлежит и принадлежит
             if ((Q < SetQ[0] || Q > SetQ[1]) && (Qnew >= SetQ[0] && Qnew <= SetQ[1])) {
                 Xrl.add(x)
             }
@@ -56,7 +58,6 @@ fun calculateTmo(
     val newDrawableItem = DrawableItem(
         offsetList = calculateOffsets(newFigureLines),
         color = figureA.color,
-        lines = newFigureLines.toMutableList(),
         tmoWasMake = true
     )
     drawableItems.remove(figureA)
@@ -74,6 +75,51 @@ fun calculateOffsets(newFigureLines: MutableList<Line>): MutableList<Offset> {
     }
 
     return resultOffsets
+}
+
+fun calculateLines(drawableItem: DrawableItem): List<Line> {
+    val lines = mutableListOf<Line>()
+    if (drawableItem.tmoWasMake == true) {
+        val offsets = drawableItem.offsetList
+        for (i in offsets.indices step 2) {
+            val xl = offsets[i].x
+            val xr = if (i + 1 < offsets.size) offsets[i + 1].x else xl
+            lines.add(Line(xl = xl.toInt(), xr = xr.toInt(), y = offsets[i].y.toInt()))
+        }
+        return lines
+    } else {
+        val offsetList = drawableItem.offsetList
+        val minY = getMinimumY(offsetList)
+        val maxY = getMaximumY(offsetList)
+        val xb = mutableListOf<Float>()
+
+        for (y in minY..maxY) {
+            xb.clear()
+
+            for (i in offsetList.indices) {
+                val k = if (i < offsetList.size - 1) i + 1 else 0
+
+                if ((offsetList[i].y > y && offsetList[k].y <= y) || (offsetList[k].y > y && offsetList[i].y <= y)) {
+                    val x =
+                        offsetList[i].x + (y - offsetList[i].y) / (offsetList[k].y - offsetList[i].y) * (offsetList[k].x - offsetList[i].x)
+                    xb.add(x)
+                }
+            }
+
+            xb.sort()
+
+            for (i in xb.indices step 2) {
+                val xl = xb[i].toInt()
+                val xr = if (i + 1 < xb.size) xb[i + 1].toInt() else xl
+                lines.add(Line(xl = xl, xr = xr, y = y))
+            }
+        }
+        return lines
+    }
+}
+
+fun getMinimumY(offsetList: MutableList<Offset>): Int {
+    return offsetList.minOf { it.y }.toInt()
 }
 
 

@@ -17,18 +17,28 @@ fun isPointInside(point: Offset, drawableItem: DrawableItem): Boolean {
         return point.x in minX..maxX && point.y in minY..maxY
     }
 
-    var count = 0
+    var isInside = false
 
+    // Проходим по вершинам многоугольника
     for (i in 0 until offsetList.size) {
+        // Текущая вершина
         val current = offsetList[i]
+
+        // Следующая вершина (замыкание списка)
         val next = offsetList[(i + 1) % offsetList.size]
 
-        if ((current.y <= point.y && point.y < next.y || next.y <= point.y && point.y < current.y) &&
-            point.x < (next.x - current.x) * (point.y - current.y) / (next.y - current.y) + current.x
+        // Проверка, лежит ли точка выше или ниже текущей и следующей вершин многоугольника
+        if ((current.y > point.y) != (next.y > point.y) &&
+            // Проверка, лежит ли точка левее отрезка между текущей и следующей вершинами
+            (point.x < (next.x - current.x) * (point.y - current.y) / (next.y - current.y) + current.x)
         ) {
-            count++
+            // Если условия выполняются, меняем состояние isInside
+            isInside = !isInside
         }
-    }
 
-    return count % 2 != 0
+        // Выводим текущее состояние isInside (true, если точка внутри, false в противном случае)
+        println(isInside)
+    }
+    return isInside
+
 }

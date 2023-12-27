@@ -7,25 +7,27 @@ import org.coursework.app.feature_core.data.DrawableItem
 
 fun DrawScope.drawHelperForVerticalMirror(
     position: Offset,
-    pointAlpha: Float,
     selectedFigure: DrawableItem?,
-    showCheckBoxForVerticalLine: Boolean
+    showCheckBoxForVerticalLine: Boolean,
+    showPoint: Boolean,
 ) {
     if (showCheckBoxForVerticalLine) {
         selectedFigure?.let { figure ->
             val axisX = position.x
             drawLine(
-                color = Color.Cyan.copy(alpha = pointAlpha),
+                color = Color.Cyan,
                 start = Offset(axisX, figure.offsetList.minOf { it.y }),
                 end = Offset(axisX, figure.offsetList.maxOf { it.y }),
                 strokeWidth = 2f
             )
         }
     } else {
-        drawCircle(
-            color = Color.Red.copy(alpha = pointAlpha),
-            center = position,
-            radius = 4f
-        )
+        if (showPoint) {
+            drawCircle(
+                color = Color.Red,
+                center = position,
+                radius = 4f
+            )
+        }
     }
 }
