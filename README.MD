@@ -18,3 +18,5 @@ Run the desktop application: `./gradlew :composeApp:run`
 ### Browser
 Run the browser application: `./gradlew :composeApp:jsBrowserDevelopmentRun`
 
+[Отчет по курсовой.docx](https://github.com/VangelNum/GraphSystem_CourseWork/files/13788330/default.docx)
+![image](https://github.com/VangelNum/GraphSystem_CourseWork/assets/91003195/21af2abb-6ca1-4052-90c3-843b7d72b624)
